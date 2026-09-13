@@ -7,11 +7,10 @@ import {
   Linkedin,
   ShieldCheck,
   ExternalLink,
-  Download,
 } from 'lucide-react';
 
 interface PublicFooterProps {
-  onOpenCms: () => void;
+  onOpenCms?: () => void;
   onSelectCategory: (category: string) => void;
 }
 
@@ -144,28 +143,12 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({
             &copy; 2025 iamnewsagent.com. All rights reserved.
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 text-xs">
+          <div className="flex items-center gap-4 text-xs text-slate-500">
             <span>Real People</span>
             <span className="text-slate-300">|</span>
             <span>Real Perspectives</span>
             <span className="text-slate-300">|</span>
-            <a
-              href="/project-source.zip"
-              download="iamnewsagent-source.zip"
-              className="text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 transition-colors"
-              title="Download project code as ZIP to push to GitHub"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export Code (.ZIP)</span>
-            </a>
-            <span className="text-slate-300">|</span>
-            <button
-              type="button"
-              onClick={onOpenCms}
-              className="text-red-700 font-semibold hover:underline"
-            >
-              CMS Terminal
-            </button>
+            <span>A Better Tomorrow</span>
           </div>
         </div>
       </div>
