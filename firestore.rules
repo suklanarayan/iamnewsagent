@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidArticle(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.slug is string && data.slug.size() <= 200
+        && data.headline is string && data.headline.size() <= 500
+        && data.deck is string && data.deck.size() <= 2000
+        && data.content is string && data.content.size() <= 200000
+        && data.category is string && data.category.size() <= 50
+        && data.authorId is string && data.authorId.size() <= 128
+        && data.status in ['published', 'draft', 'scheduled']
+        && (data.views is number && data.views >= 0);
+    }
+
+    function isValidAuthor(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 150
+        && data.role is string && data.role.size() <= 150
+        && data.bio is string && data.bio.size() <= 2000;
+    }
+
+    match /articles/{articleId} {
+      allow read: if isValidId(articleId);
+      allow create: if isValidId(articleId) && isValidArticle(request.resource.data);
+      allow update: if isValidId(articleId) && (
+        // Action 1: View count increment
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views'])
+          && request.resource.data.views == resource.data.views + 1)
+        ||
+        // Action 2: Article edit/update
+        isValidArticle(request.resource.data)
+      );
+      allow delete: if isValidId(articleId);
+    }
+
+    match /authors/{authorId} {
+      allow read: if isValidId(authorId);
+      allow create: if isValidId(authorId) && isValidAuthor(request.resource.data);
+      allow update: if isValidId(authorId) && isValidAuthor(request.resource.data);
+      allow delete: if isValidId(authorId);
+    }
+  }
+}

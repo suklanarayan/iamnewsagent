@@ -1,0 +1,55 @@
+{
+  "entities": {
+    "Article": {
+      "title": "Article",
+      "description": "A news publication article with rich editorial metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "slug": { "type": "string", "maxLength": 200 },
+        "headline": { "type": "string", "maxLength": 500 },
+        "deck": { "type": "string", "maxLength": 2000 },
+        "content": { "type": "string", "maxLength": 200000 },
+        "category": { "type": "string", "maxLength": 50 },
+        "tags": { "type": "array" },
+        "authorId": { "type": "string", "maxLength": 128 },
+        "featuredImage": { "type": "string", "maxLength": 2000 },
+        "imageCaption": { "type": "string", "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["published", "draft", "scheduled"] },
+        "isBreaking": { "type": "boolean" },
+        "isExplainer": { "type": "boolean" },
+        "publishedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "readTimeMinutes": { "type": "number" },
+        "views": { "type": "number" }
+      },
+      "required": ["id", "slug", "headline", "deck", "content", "category", "authorId", "status", "publishedAt"]
+    },
+    "Author": {
+      "title": "Author",
+      "description": "A news author and journalist profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 150 },
+        "role": { "type": "string", "maxLength": 150 },
+        "avatar": { "type": "string", "maxLength": 2000 },
+        "bio": { "type": "string", "maxLength": 2000 },
+        "location": { "type": "string", "maxLength": 100 },
+        "verified": { "type": "boolean" },
+        "joinedDate": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "name", "role", "bio", "joinedDate"]
+    }
+  },
+  "firestore": {
+    "/articles/{articleId}": {
+      "schema": "Article",
+      "description": "Collection of published news articles and drafts"
+    },
+    "/authors/{authorId}": {
+      "schema": "Author",
+      "description": "Collection of journalists and staff contributors"
+    }
+  }
+}

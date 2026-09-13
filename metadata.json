@@ -1,0 +1,7 @@
+{
+  "name": "iamquickagent.com - Rapid News & Intelligence",
+  "description": "High-performance rapid digital news and intelligence publishing platform with AEO/GEO optimization, Firestore persistence, CMS, and Vercel deployment support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
