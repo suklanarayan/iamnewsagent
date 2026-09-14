@@ -25,6 +25,7 @@ import {
   generateLiveStoryPoints,
   resolveCuratedImageUrl,
 } from '../services/aiNewsService';
+import { ImageUploader } from './ImageUploader';
 
 interface LiveStoriesManagerTabProps {
   stories: LiveStory[];
@@ -471,42 +472,14 @@ export const LiveStoriesManagerTab: React.FC<LiveStoriesManagerTabProps> = ({
                 </div>
               </div>
 
-              {/* Row 3: Image URL + Curated presets */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
-                  Story Cover Image
-                </label>
-                <input
-                  type="url"
-                  value={formImage}
-                  onChange={(e) => setFormImage(e.target.value)}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs font-mono"
-                  required
+              {/* Row 3: Story Cover Image Uploader (Local file, URL, Presets) */}
+              <div>
+                <ImageUploader
+                  imageUrl={formImage}
+                  onImageChange={(url) => setFormImage(url)}
+                  label="Story Visual / Cover Photo"
+                  suggestedTopic={formCategory}
                 />
-                <div className="text-[11px] text-slate-400">Quick Curated Presets:</div>
-                <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
-                  {PRESET_STORY_IMAGES.map((preset, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setFormImage(preset.url)}
-                      className={`relative h-12 rounded-lg overflow-hidden border transition-all group ${
-                        formImage === preset.url
-                          ? 'border-red-500 ring-2 ring-red-500/30'
-                          : 'border-slate-700 hover:border-slate-500'
-                      }`}
-                      title={preset.label}
-                    >
-                      <img
-                        src={preset.url}
-                        alt={preset.label}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black/40 group-hover:bg-transparent" />
-                    </button>
-                  ))}
-                </div>
               </div>
 
               {/* Row 4: Optional linked article */}

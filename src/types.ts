@@ -26,6 +26,25 @@ export interface Author {
   joinedDate: string;
 }
 
+export type ArticleType = 
+  | 'standard' 
+  | 'announcement' 
+  | 'opinion' 
+  | 'investigation' 
+  | 'live_coverage' 
+  | 'explainer' 
+  | 'research';
+
+export type SourceOriginType = 
+  | 'original'       // My Knowledge / Editorial Desk / Original Reporting
+  | 'network'        // News Network / Wire Service (Reuters, ANI, PTI, Bloomberg, etc.)
+  | 'live'           // Live Desk / Real-Time Field Update
+  | 'social'         // Social Media (X/Twitter, LinkedIn, Telegram, YouTube, etc.)
+  | 'press_release'  // Official Announcement / Corporate PR / Govt Gazette
+  | 'blog'           // Blog / Substack / Independent Newsletter
+  | 'reference'      // Research Paper / Whitepaper / Case Study
+  | 'custom';        // Custom Reference / Other
+
 export interface Citation {
   label: string;
   url: string;
@@ -50,6 +69,10 @@ export interface Article {
   featuredImage: string;
   imageCaption?: string;
   status: 'published' | 'draft' | 'scheduled';
+  articleType?: ArticleType;
+  sourceType?: SourceOriginType;
+  sourceName?: string;
+  sourceUrl?: string;
   isBreaking: boolean;
   isExplainer?: boolean;
   publishedAt: string; // ISO 8601

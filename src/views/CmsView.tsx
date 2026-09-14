@@ -27,7 +27,7 @@ import {
   Rss,
   Radio,
 } from 'lucide-react';
-import type { Article, Author, Category, FirebaseConfig, LiveStory } from '../types';
+import type { Article, Author, Category, FirebaseConfig, LiveStory, ArticleType, SourceOriginType } from '../types';
 import { slugify } from '../utils/seo';
 import {
   createArticle,
@@ -43,6 +43,8 @@ import {
 } from '../services/firebase';
 import { AiWireTab } from '../components/AiWireTab';
 import { LiveStoriesManagerTab } from '../components/LiveStoriesManagerTab';
+import { ImageUploader } from '../components/ImageUploader';
+import { SourceOriginPicker } from '../components/SourceOriginPicker';
 import {
   resolveCuratedImageUrl,
   rewriteNewsWithGemini,
@@ -112,6 +114,10 @@ export const CmsView: React.FC<CmsViewProps> = ({
   const [imageCaption, setImageCaption] = useState('');
   const [isBreaking, setIsBreaking] = useState(false);
   const [status, setStatus] = useState<'published' | 'draft' | 'scheduled'>('published');
+  const [articleType, setArticleType] = useState<ArticleType>('standard');
+  const [sourceType, setSourceType] = useState<SourceOriginType>('original');
+  const [sourceName, setSourceName] = useState('Editorial Desk (Original Reporting)');
+  const [sourceUrl, setSourceUrl] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const [readTimeMinutes, setReadTimeMinutes] = useState(4);
   const [content, setContent] = useState('');
@@ -206,6 +212,10 @@ export const CmsView: React.FC<CmsViewProps> = ({
     setImageCaption('');
     setIsBreaking(false);
     setStatus('published');
+    setArticleType('standard');
+    setSourceType('original');
+    setSourceName('Editorial Desk (Original Reporting)');
+    setSourceUrl('');
     setTagsInput('Artificial Intelligence, Intelligence Brief');
     setReadTimeMinutes(4);
     setKeyTakeaways([
@@ -229,6 +239,10 @@ export const CmsView: React.FC<CmsViewProps> = ({
     setImageCaption(data.imageCaption || `Wire reporting filed by editorial desk.`);
     setIsBreaking(false);
     setStatus('published');
+    setArticleType('standard');
+    setSourceType(data.sourceTitle ? 'network' : 'original');
+    setSourceName(data.sourceTitle || 'News Wire Service');
+    setSourceUrl(data.sourceUrl || '');
     setTagsInput((data.tags || []).join(', '));
     setReadTimeMinutes(data.readTimeMinutes || 4);
     setKeyTakeaways(data.keyTakeaways && data.keyTakeaways.length > 0 ? data.keyTakeaways : ['']);
@@ -323,6 +337,10 @@ export const CmsView: React.FC<CmsViewProps> = ({
     setImageCaption(art.imageCaption || '');
     setIsBreaking(art.isBreaking);
     setStatus(art.status);
+    setArticleType(art.articleType || 'standard');
+    setSourceType(art.sourceType || 'original');
+    setSourceName(art.sourceName || 'Editorial Desk');
+    setSourceUrl(art.sourceUrl || '');
     setTagsInput(art.tags.join(', '));
     setReadTimeMinutes(art.readTimeMinutes || 3);
     setKeyTakeaways(art.keyTakeaways.length > 0 ? art.keyTakeaways : ['']);
@@ -366,6 +384,10 @@ export const CmsView: React.FC<CmsViewProps> = ({
           imageCaption,
           isBreaking,
           status,
+          articleType,
+          sourceType,
+          sourceName,
+          sourceUrl: sourceUrl.trim() || undefined,
           tags: parsedTags,
           readTimeMinutes: Number(readTimeMinutes) || 3,
           keyTakeaways: validTakeaways,
@@ -384,6 +406,10 @@ export const CmsView: React.FC<CmsViewProps> = ({
           imageCaption,
           isBreaking,
           status,
+          articleType,
+          sourceType,
+          sourceName,
+          sourceUrl: sourceUrl.trim() || undefined,
           tags: parsedTags,
           readTimeMinutes: Number(readTimeMinutes) || 3,
           keyTakeaways: validTakeaways,
@@ -757,9 +783,22 @@ export const CmsView: React.FC<CmsViewProps> = ({
                       </div>
                     </td>
                     <td className="p-3.5 whitespace-nowrap">
-                      <span className="px-2 py-0.5 rounded bg-slate-800 text-amber-400 border border-slate-700">
-                        {art.category}
-                      </span>
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className="px-2 py-0.5 rounded bg-slate-800 text-amber-400 border border-slate-700 text-[11px] font-semibold">
+                          {art.category}
+                        </span>
+                        {art.articleType === 'announcement' && (
+                          <span className="px-1.5 py-0.5 rounded bg-blue-950/80 text-blue-300 border border-blue-800 text-[9px] font-bold">
+                            📢 Announcement
+                          </span>
+                        )}
+                        <span className="text-[10px] text-slate-400 font-intel flex items-center gap-1">
+                          <span className="text-slate-500">by:</span>
+                          <span className="truncate max-w-[120px] text-slate-300" title={art.sourceName || 'Editorial Desk'}>
+                            {art.sourceName || 'Editorial Desk'}
+                          </span>
+                        </span>
+                      </div>
                     </td>
                     <td className="p-3.5 whitespace-nowrap">
                       <span
@@ -917,6 +956,18 @@ export const CmsView: React.FC<CmsViewProps> = ({
                   className="w-full px-3.5 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:border-amber-400"
                 />
               </div>
+
+              {/* NEWS ORIGIN, FORMAT & SOURCE ATTRIBUTION */}
+              <SourceOriginPicker
+                articleType={articleType}
+                onChangeArticleType={setArticleType}
+                sourceType={sourceType}
+                onChangeSourceType={setSourceType}
+                sourceName={sourceName}
+                onChangeSourceName={setSourceName}
+                sourceUrl={sourceUrl}
+                onChangeSourceUrl={setSourceUrl}
+              />
 
               {/* MANDATORY DEDICATED 'KEY TAKEAWAY' SUMMARY INPUT BOX */}
               <div className="p-4 rounded-xl border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-slate-900 to-slate-900 space-y-3">
@@ -1129,48 +1180,17 @@ export const CmsView: React.FC<CmsViewProps> = ({
                 </button>
               </div>
 
-              {/* Featured Image Picker */}
-              <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-intel font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
-                    <Image className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Featured Image URL</span>
-                  </h4>
-                </div>
-
-                <input
-                  type="url"
-                  value={featuredImage}
-                  onChange={(e) => setFeaturedImage(e.target.value)}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs font-mono"
-                />
-
-                {/* Presets */}
-                <div className="text-[11px] text-slate-400 font-intel">Quick Presets:</div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {CURATED_IMAGES.map((img, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setFeaturedImage(img.url)}
-                      className="relative h-12 rounded overflow-hidden border border-slate-700 hover:border-amber-400 transition-colors group"
-                      title={img.label}
-                    >
-                      <img src={img.url} alt={img.label} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/40 group-hover:bg-transparent" />
-                    </button>
-                  ))}
-                </div>
-
-                <input
-                  type="text"
-                  value={imageCaption}
-                  onChange={(e) => setImageCaption(e.target.value)}
-                  placeholder="Image caption / credit line..."
-                  className="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-300 text-xs font-intel"
-                />
-              </div>
+              {/* Full Featured Image Studio (Upload / URL / Presets / AI) */}
+              <ImageUploader
+                imageUrl={featuredImage}
+                onChangeImageUrl={setFeaturedImage}
+                imageCaption={imageCaption}
+                onChangeImageCaption={setImageCaption}
+                onInsertIntoBody={(markdownTag) => {
+                  setContent((prev) => prev + markdownTag);
+                  showToast('Image inserted into story content!');
+                }}
+              />
 
               {/* LIVE GOOGLE SERP & AEO PREVIEW */}
               <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">

@@ -41,13 +41,18 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent lg:hidden" />
             
-            {/* Breaking Flash Badge */}
-            <div className="absolute top-4 left-4 flex items-center gap-2">
+            {/* Breaking Flash Badge & Format */}
+            <div className="absolute top-4 left-4 flex flex-wrap items-center gap-2">
               <span className="px-2.5 py-1 rounded-full bg-red-600/90 text-white font-intel font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-lg backdrop-blur-sm">
                 <span className="w-2 h-2 rounded-full bg-white animate-ping" />
                 <Zap className="w-3.5 h-3.5 fill-white" />
                 Breaking Intelligence Hero
               </span>
+              {article.articleType === 'announcement' && (
+                <span className="px-2.5 py-1 rounded-full bg-blue-600/90 text-white font-intel font-bold text-xs uppercase tracking-wider backdrop-blur-sm shadow-md">
+                  📢 Official Announcement
+                </span>
+              )}
               <span className="px-2 py-1 rounded-full bg-slate-900/80 text-amber-400 border border-amber-500/30 font-intel font-medium text-xs backdrop-blur-sm">
                 {article.category}
               </span>
@@ -156,10 +161,15 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
               loading="lazy"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent" />
-            <div className="absolute top-3 left-3 flex items-center gap-1.5">
+            <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5">
               <span className="px-2 py-0.5 rounded bg-slate-950/80 text-amber-400 font-intel font-semibold text-[11px] border border-amber-500/20 backdrop-blur-sm">
                 {article.category}
               </span>
+              {article.articleType === 'announcement' && (
+                <span className="px-1.5 py-0.5 rounded bg-blue-600/90 text-white font-intel font-bold text-[10px] uppercase backdrop-blur-sm">
+                  📢 Announcement
+                </span>
+              )}
               {article.isBreaking && (
                 <span className="px-1.5 py-0.5 rounded bg-red-600 text-white font-intel font-bold text-[10px] uppercase">
                   Flash
