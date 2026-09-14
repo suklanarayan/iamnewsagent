@@ -26,8 +26,19 @@ import {
   Zap,
   Rss,
   Radio,
+  Clock,
+  Megaphone,
 } from 'lucide-react';
-import type { Article, Author, Category, FirebaseConfig, LiveStory, ArticleType, SourceOriginType } from '../types';
+import type {
+  Article,
+  Author,
+  Category,
+  FirebaseConfig,
+  LiveStory,
+  ArticleType,
+  SourceOriginType,
+  PublicationStatus,
+} from '../types';
 import { slugify } from '../utils/seo';
 import {
   createArticle,
@@ -43,8 +54,11 @@ import {
 } from '../services/firebase';
 import { AiWireTab } from '../components/AiWireTab';
 import { LiveStoriesManagerTab } from '../components/LiveStoriesManagerTab';
+import { SponsorAdManagerTab } from '../components/SponsorAdManagerTab';
 import { ImageUploader } from '../components/ImageUploader';
 import { SourceOriginPicker } from '../components/SourceOriginPicker';
+import { PublicationStatusPicker } from '../components/PublicationStatusPicker';
+import { getStatusMeta, PUBLICATION_STATUSES } from '../utils/statusUtils';
 import {
   resolveCuratedImageUrl,
   rewriteNewsWithGemini,
@@ -100,7 +114,7 @@ export const CmsView: React.FC<CmsViewProps> = ({
   const [authError, setAuthError] = useState('');
 
   // Active CMS Tab
-  const [activeTab, setActiveTab] = useState<'manage' | 'editor' | 'wire' | 'stories' | 'authors' | 'deploy'>('manage');
+  const [activeTab, setActiveTab] = useState<'manage' | 'editor' | 'wire' | 'stories' | 'authors' | 'deploy' | 'sponsor'>('manage');
 
   // Article Editor State
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
@@ -113,7 +127,11 @@ export const CmsView: React.FC<CmsViewProps> = ({
   const [featuredImage, setFeaturedImage] = useState(CURATED_IMAGES[0].url);
   const [imageCaption, setImageCaption] = useState('');
   const [isBreaking, setIsBreaking] = useState(false);
-  const [status, setStatus] = useState<'published' | 'draft' | 'scheduled'>('published');
+  const [status, setStatus] = useState<PublicationStatus>('published');
+  const [scheduledPublishAt, setScheduledPublishAt] = useState<string>('');
+  const [reviewNotes, setReviewNotes] = useState<string>('');
+  const [retractionReason, setRetractionReason] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<'all' | PublicationStatus>('all');
   const [articleType, setArticleType] = useState<ArticleType>('standard');
   const [sourceType, setSourceType] = useState<SourceOriginType>('original');
   const [sourceName, setSourceName] = useState('Editorial Desk (Original Reporting)');
@@ -212,6 +230,9 @@ export const CmsView: React.FC<CmsViewProps> = ({
     setImageCaption('');
     setIsBreaking(false);
     setStatus('published');
+    setScheduledPublishAt('');
+    setReviewNotes('');
+    setRetractionReason('');
     setArticleType('standard');
     setSourceType('original');
     setSourceName('Editorial Desk (Original Reporting)');
@@ -336,7 +357,10 @@ export const CmsView: React.FC<CmsViewProps> = ({
     setFeaturedImage(art.featuredImage);
     setImageCaption(art.imageCaption || '');
     setIsBreaking(art.isBreaking);
-    setStatus(art.status);
+    setStatus(art.status || 'published');
+    setScheduledPublishAt(art.scheduledPublishAt || '');
+    setReviewNotes(art.reviewNotes || '');
+    setRetractionReason(art.retractionReason || '');
     setArticleType(art.articleType || 'standard');
     setSourceType(art.sourceType || 'original');
     setSourceName(art.sourceName || 'Editorial Desk');
@@ -384,6 +408,9 @@ export const CmsView: React.FC<CmsViewProps> = ({
           imageCaption,
           isBreaking,
           status,
+          scheduledPublishAt: status === 'scheduled' && scheduledPublishAt ? scheduledPublishAt : undefined,
+          reviewNotes: status === 'review' && reviewNotes.trim() ? reviewNotes.trim() : undefined,
+          retractionReason: status === 'withdrawn' && retractionReason.trim() ? retractionReason.trim() : undefined,
           articleType,
           sourceType,
           sourceName,
@@ -406,6 +433,9 @@ export const CmsView: React.FC<CmsViewProps> = ({
           imageCaption,
           isBreaking,
           status,
+          scheduledPublishAt: status === 'scheduled' && scheduledPublishAt ? scheduledPublishAt : undefined,
+          reviewNotes: status === 'review' && reviewNotes.trim() ? reviewNotes.trim() : undefined,
+          retractionReason: status === 'withdrawn' && retractionReason.trim() ? retractionReason.trim() : undefined,
           articleType,
           sourceType,
           sourceName,
@@ -427,6 +457,21 @@ export const CmsView: React.FC<CmsViewProps> = ({
       showToast('Error saving article. Check console.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Fast 1-Click Status Lifecycle Transition from Table
+  const handleQuickStatusChange = async (articleId: string, newStatus: PublicationStatus) => {
+    try {
+      await updateArticle(articleId, {
+        status: newStatus,
+        updatedAt: new Date().toISOString(),
+      });
+      await onRefreshArticles();
+      showToast(`Status updated to "${getStatusMeta(newStatus).label}"`);
+    } catch (err) {
+      console.error('Quick status update failed:', err);
+      showToast('Failed to update status');
     }
   };
 
@@ -722,15 +767,33 @@ export const CmsView: React.FC<CmsViewProps> = ({
         >
           Vercel & Firebase Setup
         </button>
+        <button
+          id="cms-tab-sponsor"
+          type="button"
+          onClick={() => setActiveTab('sponsor')}
+          className={`pb-3 px-3 font-semibold transition-colors whitespace-nowrap relative flex items-center gap-1.5 ${
+            activeTab === 'sponsor'
+              ? 'text-amber-400 border-b-2 border-amber-500'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Megaphone className="w-3.5 h-3.5 text-amber-400" />
+          <span>Sponsor Ribbon & Ads</span>
+        </button>
       </div>
 
       {/* TAB 1: ARTICLES MANAGEMENT TABLE */}
       {activeTab === 'manage' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold font-editorial text-slate-200">
-              Published Intelligence Articles
-            </h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-base font-bold font-editorial text-slate-200">
+                Editorial Wire & Article Archive
+              </h3>
+              <p className="text-xs text-slate-400 font-intel">
+                Manage publication statuses, embargoes, editorial reviews, and public distribution.
+              </p>
+            </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -751,13 +814,55 @@ export const CmsView: React.FC<CmsViewProps> = ({
             </div>
           </div>
 
+          {/* Status Filter Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-800 text-xs font-intel">
+            <button
+              type="button"
+              onClick={() => setStatusFilter('all')}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                statusFilter === 'all'
+                  ? 'bg-amber-500 text-slate-950 font-bold'
+                  : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+              }`}
+            >
+              <span>All Articles</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-950/40 text-current font-mono">
+                {articles.length}
+              </span>
+            </button>
+
+            {PUBLICATION_STATUSES.map((s) => {
+              const count = articles.filter((a) => (a.status || 'published') === s.id).length;
+              const isSelected = statusFilter === s.id;
+              const Icon = s.icon;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setStatusFilter(s.id)}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                    isSelected
+                      ? `${s.colorClass.badge} font-bold ring-1 ring-amber-500/50`
+                      : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800'
+                  }`}
+                >
+                  <Icon className="w-3 h-3" />
+                  <span>{s.shortLabel}</span>
+                  <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-950/60 text-slate-300 font-mono">
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
           <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto shadow-xl">
             <table className="w-full text-left text-xs font-intel border-collapse">
               <thead>
                 <tr className="bg-slate-950/80 border-b border-slate-800 text-slate-400 font-bold uppercase tracking-wider">
                   <th className="p-3.5">Headline & Slug</th>
-                  <th className="p-3.5">Category</th>
-                  <th className="p-3.5">Status</th>
+                  <th className="p-3.5">Category & Origin</th>
+                  <th className="p-3.5">Lifecycle Status</th>
                   <th className="p-3.5">Key Takeaways</th>
                   <th className="p-3.5">Views</th>
                   <th className="p-3.5">Filed</th>
@@ -765,91 +870,153 @@ export const CmsView: React.FC<CmsViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/80 text-slate-300">
-                {articles.map((art) => (
-                  <tr key={art.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="p-3.5 max-w-sm">
-                      <div className="flex items-center gap-2">
-                        {art.isBreaking && (
-                          <span className="px-1.5 py-0.5 rounded bg-red-600 text-white text-[9px] font-bold">
-                            FLASH
+                {(() => {
+                  const filteredArticles = statusFilter === 'all'
+                    ? articles
+                    : articles.filter((a) => (a.status || 'published') === statusFilter);
+
+                  if (filteredArticles.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-slate-400">
+                          <p className="text-sm font-semibold text-slate-300 mb-1">
+                            No articles found with status "{statusFilter}".
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setStatusFilter('all')}
+                            className="text-xs text-amber-400 hover:underline cursor-pointer"
+                          >
+                            View all articles ({articles.length})
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return filteredArticles.map((art) => {
+                    const meta = getStatusMeta(art.status || 'published');
+                    const Icon = meta.icon;
+
+                    return (
+                      <tr key={art.id} className="hover:bg-slate-800/40 transition-colors">
+                        <td className="p-3.5 max-w-sm">
+                          <div className="flex items-center gap-2">
+                            {art.isBreaking && (
+                              <span className="px-1.5 py-0.5 rounded bg-red-600 text-white text-[9px] font-bold">
+                                FLASH
+                              </span>
+                            )}
+                            <span className="font-bold text-slate-100 font-editorial text-sm line-clamp-1">
+                              {art.headline}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-slate-400 font-mono truncate mt-0.5">
+                            /article/{art.slug}
+                          </div>
+                        </td>
+                        <td className="p-3.5 whitespace-nowrap">
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className="px-2 py-0.5 rounded bg-slate-800 text-amber-400 border border-slate-700 text-[11px] font-semibold">
+                              {art.category}
+                            </span>
+                            {art.articleType === 'announcement' && (
+                              <span className="px-1.5 py-0.5 rounded bg-blue-950/80 text-blue-300 border border-blue-800 text-[9px] font-bold">
+                                📢 Announcement
+                              </span>
+                            )}
+                            <span className="text-[10px] text-slate-400 font-intel flex items-center gap-1">
+                              <span className="text-slate-500">by:</span>
+                              <span className="truncate max-w-[120px] text-slate-300" title={art.sourceName || 'Editorial Desk'}>
+                                {art.sourceName || 'Editorial Desk'}
+                              </span>
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-3.5 whitespace-nowrap">
+                          <div className="flex flex-col gap-1.5 items-start">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase flex items-center gap-1 ${meta.colorClass.badge}`}
+                            >
+                              <Icon className="w-3 h-3" />
+                              <span>{meta.shortLabel}</span>
+                            </span>
+
+                            {art.status === 'scheduled' && art.scheduledPublishAt && (
+                              <span className="text-[10px] text-blue-400 font-mono flex items-center gap-1" title={new Date(art.scheduledPublishAt).toLocaleString()}>
+                                <Clock className="w-2.5 h-2.5" />
+                                <span>{new Date(art.scheduledPublishAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                              </span>
+                            )}
+
+                            {art.status === 'review' && (
+                              <span className="text-[10px] text-amber-400/90 italic">
+                                Pending desk review
+                              </span>
+                            )}
+
+                            {art.status === 'withdrawn' && (
+                              <span className="text-[10px] text-red-400 font-medium">
+                                Withdrawn Notice
+                              </span>
+                            )}
+
+                            {/* Rapid 1-Click Status Lifecycle Transition Selector */}
+                            <select
+                              value={art.status || 'published'}
+                              onChange={(e) => handleQuickStatusChange(art.id, e.target.value as PublicationStatus)}
+                              className="text-[10px] bg-slate-950 border border-slate-800 hover:border-slate-700 rounded px-1.5 py-0.5 text-slate-300 font-intel focus:border-amber-400 cursor-pointer"
+                              title="Quickly change article publication status"
+                            >
+                              {PUBLICATION_STATUSES.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  &rarr; {s.shortLabel}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </td>
+                        <td className="p-3.5">
+                          <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                            {art.keyTakeaways.length} points
                           </span>
-                        )}
-                        <span className="font-bold text-slate-100 font-editorial text-sm line-clamp-1">
-                          {art.headline}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-slate-400 font-mono truncate mt-0.5">
-                        /article/{art.slug}
-                      </div>
-                    </td>
-                    <td className="p-3.5 whitespace-nowrap">
-                      <div className="flex flex-col gap-1 items-start">
-                        <span className="px-2 py-0.5 rounded bg-slate-800 text-amber-400 border border-slate-700 text-[11px] font-semibold">
-                          {art.category}
-                        </span>
-                        {art.articleType === 'announcement' && (
-                          <span className="px-1.5 py-0.5 rounded bg-blue-950/80 text-blue-300 border border-blue-800 text-[9px] font-bold">
-                            📢 Announcement
-                          </span>
-                        )}
-                        <span className="text-[10px] text-slate-400 font-intel flex items-center gap-1">
-                          <span className="text-slate-500">by:</span>
-                          <span className="truncate max-w-[120px] text-slate-300" title={art.sourceName || 'Editorial Desk'}>
-                            {art.sourceName || 'Editorial Desk'}
-                          </span>
-                        </span>
-                      </div>
-                    </td>
-                    <td className="p-3.5 whitespace-nowrap">
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                          art.status === 'published'
-                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-900'
-                            : 'bg-amber-950 text-amber-400 border border-amber-900'
-                        }`}
-                      >
-                        {art.status}
-                      </span>
-                    </td>
-                    <td className="p-3.5">
-                      <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-                        {art.keyTakeaways.length} points
-                      </span>
-                    </td>
-                    <td className="p-3.5 whitespace-nowrap text-slate-400">
-                      {art.views.toLocaleString()}
-                    </td>
-                    <td className="p-3.5 whitespace-nowrap text-slate-400">
-                      {new Date(art.publishedAt).toLocaleDateString()}
-                    </td>
-                    <td className="p-3.5 text-right whitespace-nowrap space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => onPreviewArticle(art)}
-                        className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white"
-                        title="View Live Reader"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleEditArticle(art)}
-                        className="p-1.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30"
-                        title="Edit in CMS"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteArticle(art.id, art.headline)}
-                        className="p-1.5 rounded bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-900/40"
-                        title="Delete Permanently"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                        </td>
+                        <td className="p-3.5 whitespace-nowrap text-slate-400">
+                          {art.views.toLocaleString()}
+                        </td>
+                        <td className="p-3.5 whitespace-nowrap text-slate-400">
+                          {new Date(art.publishedAt).toLocaleDateString()}
+                        </td>
+                        <td className="p-3.5 text-right whitespace-nowrap space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => onPreviewArticle(art)}
+                            className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white"
+                            title="View Live Reader"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleEditArticle(art)}
+                            className="p-1.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30"
+                            title="Edit in CMS"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteArticle(art.id, art.headline)}
+                            className="p-1.5 rounded bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-900/40"
+                            title="Delete Permanently"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>
@@ -1049,27 +1216,23 @@ export const CmsView: React.FC<CmsViewProps> = ({
 
             {/* Right Column: Metadata & Settings */}
             <div className="lg:col-span-4 space-y-5">
+              {/* Publication Status & Editorial Lifecycle Picker */}
+              <PublicationStatusPicker
+                status={status}
+                onChangeStatus={setStatus}
+                scheduledPublishAt={scheduledPublishAt}
+                onChangeScheduledPublishAt={setScheduledPublishAt}
+                reviewNotes={reviewNotes}
+                onChangeReviewNotes={setReviewNotes}
+                retractionReason={retractionReason}
+                onChangeRetractionReason={setRetractionReason}
+              />
+
               {/* Publishing Controls Card */}
               <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-4">
                 <h4 className="text-xs font-intel font-bold uppercase tracking-wider text-slate-200 pb-2 border-b border-slate-800">
-                  Publishing Settings
+                  Broadcast & Category Settings
                 </h4>
-
-                {/* Status */}
-                <div>
-                  <label className="block text-xs font-intel text-slate-300 mb-1">
-                    Publication Status
-                  </label>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs font-intel"
-                  >
-                    <option value="published">Published (Live on Wire)</option>
-                    <option value="draft">Draft (Saved in DB)</option>
-                    <option value="scheduled">Scheduled (Embargoed)</option>
-                  </select>
-                </div>
 
                 {/* Breaking News Toggle */}
                 <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800">
@@ -1471,6 +1634,9 @@ git push -u origin main`}
           </div>
         </div>
       )}
+
+      {/* TAB 6: SPONSOR RIBBON & AD SETTINGS */}
+      {activeTab === 'sponsor' && <SponsorAdManagerTab />}
 
       {/* QUICK ADD AUTHOR MODAL */}
       {showAuthorModal && (

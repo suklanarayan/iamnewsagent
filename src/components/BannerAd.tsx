@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ExternalLink, X, ShieldCheck } from 'lucide-react';
 import type { BannerAd as BannerAdType } from '../types';
+import { getStickyBannerAd, isStickyBannerEnabled } from '../utils/adManager';
 
 interface BannerAdProps {
   ad?: BannerAdType;
@@ -57,9 +58,33 @@ export const BannerAd: React.FC<BannerAdProps> = ({
   className = '',
 }) => {
   const [isDismissed, setIsDismissed] = useState(false);
-  const activeAd = ad || DEFAULT_ADS[format];
+  const [activeStickyAd, setActiveStickyAd] = useState<BannerAdType>(() => getStickyBannerAd());
+  const [stickyEnabled, setStickyEnabled] = useState<boolean>(() => isStickyBannerEnabled());
+
+  // Listen to storage events or state changes for ad updates
+  useEffect(() => {
+    if (format === 'sticky-bottom') {
+      setActiveStickyAd(getStickyBannerAd());
+      setStickyEnabled(isStickyBannerEnabled());
+
+      const handleStorage = () => {
+        setActiveStickyAd(getStickyBannerAd());
+        setStickyEnabled(isStickyBannerEnabled());
+      };
+      window.addEventListener('storage', handleStorage);
+      return () => window.removeEventListener('storage', handleStorage);
+    }
+  }, [format]);
 
   if (isDismissed) return null;
+  if (format === 'sticky-bottom' && !stickyEnabled && !ad) return null;
+
+  const activeAd = ad || (format === 'sticky-bottom' ? activeStickyAd : DEFAULT_ADS[format]);
+  if (!activeAd) return null;
+
+  const isExternalLink = Boolean(
+    activeAd.ctaUrl && (activeAd.ctaUrl.startsWith('http://') || activeAd.ctaUrl.startsWith('https://') || activeAd.ctaUrl.startsWith('//'))
+  );
 
   // Format 1: Leaderboard (728x90 on desktop, responsive)
   if (format === 'leaderboard') {
@@ -88,11 +113,9 @@ export const BannerAd: React.FC<BannerAdProps> = ({
 
         <div className="flex-shrink-0 w-full sm:w-auto">
           <a
-            href={activeAd.ctaUrl}
-            onClick={(e) => {
-              e.preventDefault();
-              alert(`Navigating to verified partner: ${activeAd.sponsor}`);
-            }}
+            href={activeAd.ctaUrl || '#'}
+            target={isExternalLink ? '_blank' : undefined}
+            rel={isExternalLink ? 'noopener noreferrer' : undefined}
             className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-colors shadow-xs"
           >
             <span>{activeAd.ctaText}</span>
@@ -146,11 +169,9 @@ export const BannerAd: React.FC<BannerAdProps> = ({
 
         <div className="mt-4 pt-3 border-t border-slate-100">
           <a
-            href={activeAd.ctaUrl}
-            onClick={(e) => {
-              e.preventDefault();
-              alert(`Navigating to verified partner: ${activeAd.sponsor}`);
-            }}
+            href={activeAd.ctaUrl || '#'}
+            target={isExternalLink ? '_blank' : undefined}
+            rel={isExternalLink ? 'noopener noreferrer' : undefined}
             className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-900 font-semibold text-xs transition-colors"
           >
             <span>{activeAd.ctaText}</span>
@@ -182,11 +203,9 @@ export const BannerAd: React.FC<BannerAdProps> = ({
           {activeAd.description}
         </p>
         <a
-          href={activeAd.ctaUrl}
-          onClick={(e) => {
-            e.preventDefault();
-            alert(`Opening verified brief from: ${activeAd.sponsor}`);
-          }}
+          href={activeAd.ctaUrl || '#'}
+          target={isExternalLink ? '_blank' : undefined}
+          rel={isExternalLink ? 'noopener noreferrer' : undefined}
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-700 hover:underline"
         >
           <span>{activeAd.ctaText}</span>
@@ -216,12 +235,10 @@ export const BannerAd: React.FC<BannerAdProps> = ({
 
         <div className="flex items-center gap-2 flex-shrink-0">
           <a
-            href={activeAd.ctaUrl}
-            onClick={(e) => {
-              e.preventDefault();
-              alert(`Navigating to verified partner: ${activeAd.sponsor}`);
-            }}
-            className="px-3 py-1.5 rounded-lg bg-red-700 hover:bg-red-800 text-white font-semibold text-xs flex items-center gap-1"
+            href={activeAd.ctaUrl || '#'}
+            target={isExternalLink ? '_blank' : undefined}
+            rel={isExternalLink ? 'noopener noreferrer' : undefined}
+            className="px-3 py-1.5 rounded-lg bg-red-700 hover:bg-red-800 text-white font-semibold text-xs flex items-center gap-1 transition-colors shadow-xs"
           >
             <span>{activeAd.ctaText}</span>
             <ExternalLink className="w-3 h-3" />

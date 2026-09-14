@@ -45,6 +45,15 @@ export type SourceOriginType =
   | 'reference'      // Research Paper / Whitepaper / Case Study
   | 'custom';        // Custom Reference / Other
 
+export type PublicationStatus =
+  | 'published'    // Live on Wire (Publicly visible to all readers)
+  | 'draft'        // Draft (Work in Progress / Saved in DB)
+  | 'review'       // In Review (Editorial Desk & Fact-Check Clearance)
+  | 'scheduled'    // Scheduled Release (Embargoed until specified date/time)
+  | 'unlisted'     // Unlisted Wire (Direct link only / Private Preview)
+  | 'archived'     // Archived (Retired from active wire / Historical record)
+  | 'withdrawn';   // Retracted / Correction Notice Issued
+
 export interface Citation {
   label: string;
   url: string;
@@ -68,7 +77,10 @@ export interface Article {
   authorId: string;
   featuredImage: string;
   imageCaption?: string;
-  status: 'published' | 'draft' | 'scheduled';
+  status: PublicationStatus;
+  scheduledPublishAt?: string; // ISO 8601 for scheduled/embargoed articles
+  reviewNotes?: string;        // Optional notes from reporter / editor
+  retractionReason?: string;   // Optional explanation if withdrawn/retracted
   articleType?: ArticleType;
   sourceType?: SourceOriginType;
   sourceName?: string;

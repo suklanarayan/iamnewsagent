@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Menu,
   X,
   Search,
   User,
-  Sun,
   ChevronDown,
-  Sparkles,
 } from 'lucide-react';
+import { LiveWeatherDropdown } from './LiveWeatherDropdown';
 import type { Category } from '../types';
 
 interface HeaderProps {
@@ -44,20 +43,29 @@ export const Header: React.FC<HeaderProps> = ({
   isCloudStorage = false,
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [cityIndex, setCityIndex] = useState(0);
+  const [currentDate, setCurrentDate] = useState<string>(() => {
+    return new Intl.DateTimeFormat('en-US', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).format(new Date());
+  });
 
-  const CITIES = [
-    { name: 'Kolkata', temp: '28°C', icon: '☀️' },
-    { name: 'New Delhi', temp: '31°C', icon: '🌤️' },
-    { name: 'Mumbai', temp: '29°C', icon: '🌧️' },
-    { name: 'Bengaluru', temp: '24°C', icon: '⛅' },
-  ];
-
-  const currentCity = CITIES[cityIndex];
-
-  const toggleCity = () => {
-    setCityIndex((prev) => (prev + 1) % CITIES.length);
-  };
+  // Keep date accurate if left open across midnight
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDate(
+        new Intl.DateTimeFormat('en-US', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }).format(new Date())
+      );
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <header className="w-full bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
@@ -65,18 +73,11 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between border-b border-slate-100 text-xs text-slate-600">
         {/* Left: Date & Live Weather */}
         <div className="flex items-center gap-2">
-          <span className="font-medium text-slate-700">Tue, 9 Sep 2025</span>
+          <span className="font-medium text-slate-700 whitespace-nowrap">
+            {currentDate}
+          </span>
           <span className="text-slate-300">|</span>
-          <button
-            type="button"
-            onClick={toggleCity}
-            className="flex items-center gap-1 hover:text-red-700 transition-colors cursor-pointer group"
-            title="Click to switch city weather"
-          >
-            <span>{currentCity.name}</span>
-            <span className="font-semibold text-slate-800">{currentCity.temp}</span>
-            <span>{currentCity.icon}</span>
-          </button>
+          <LiveWeatherDropdown />
         </div>
 
         {/* Center: Brand Logo */}

@@ -21,6 +21,7 @@ import type { Article, Author } from '../types';
 import { KeyTakeawaysBlock } from '../components/KeyTakeawaysBlock';
 import { BannerAd } from '../components/BannerAd';
 import { injectArticleSchema, removeArticleSchema } from '../utils/seo';
+import { getStatusMeta } from '../utils/statusUtils';
 
 interface ArticleViewProps {
   article: Article;
@@ -197,6 +198,46 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
                 {(article.views || 1).toLocaleString()} views
               </span>
             </div>
+
+            {/* EDITORIAL LIFECYCLE STATUS BANNER (for draft, review, scheduled, unlisted, archived, retracted) */}
+            {article.status && article.status !== 'published' && (() => {
+              const meta = getStatusMeta(article.status);
+              const StatusIcon = meta.icon;
+              return (
+                <div
+                  className={`p-3.5 rounded-xl border flex items-start gap-3 text-xs font-intel ${meta.colorClass.bg} ${meta.colorClass.border}`}
+                >
+                  <div className={`p-1.5 rounded-lg shrink-0 ${meta.colorClass.badge}`}>
+                    <StatusIcon className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`font-bold uppercase tracking-wider text-[11px] ${meta.colorClass.text}`}>
+                        {meta.label}
+                      </span>
+                      {article.status === 'scheduled' && article.scheduledPublishAt && (
+                        <span className="font-mono text-slate-700 bg-white/80 px-2 py-0.5 rounded border border-slate-300">
+                          Embargo until: {new Date(article.scheduledPublishAt).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-slate-700 leading-relaxed">
+                      {meta.description}
+                    </p>
+                    {article.status === 'review' && article.reviewNotes && (
+                      <p className="text-slate-800 bg-amber-100/70 p-2 rounded border border-amber-300/60 font-mono text-[11px]">
+                        <strong>Desk Notes:</strong> {article.reviewNotes}
+                      </p>
+                    )}
+                    {article.status === 'withdrawn' && article.retractionReason && (
+                      <p className="text-red-900 bg-red-100/80 p-2 rounded border border-red-300/80 font-mono text-[11px]">
+                        <strong>Retraction Notice:</strong> {article.retractionReason}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Headline */}
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-serif text-slate-950 leading-[1.15]">
