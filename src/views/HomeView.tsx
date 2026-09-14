@@ -22,6 +22,7 @@ import {
 interface HomeViewProps {
   articles: Article[];
   authors: Author[];
+  liveStories?: LiveStory[];
   activeCategory: string;
   onSelectCategory: (category: string) => void;
   onSelectArticle: (article: Article) => void;
@@ -33,6 +34,7 @@ interface HomeViewProps {
 export const HomeView: React.FC<HomeViewProps> = ({
   articles,
   authors,
+  liveStories = [],
   activeCategory,
   onSelectCategory,
   onSelectArticle,
@@ -42,6 +44,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 }) => {
   // Live stories modal state
   const [activeStory, setActiveStory] = useState<LiveStory | null>(null);
+  const activeStoriesList = liveStories.length > 0 ? liveStories : SEED_LIVE_STORIES;
 
   // Filter articles based on activeCategory
   const filteredArticles =
@@ -129,7 +132,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* 3. LIVE STORIES INSTAGRAM-STYLE STATUS BAR */}
       <LiveStoriesBar
-        stories={SEED_LIVE_STORIES}
+        stories={activeStoriesList}
         onSelectStory={(story) => setActiveStory(story)}
       />
 
@@ -226,7 +229,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {/* INTERACTIVE WEB STORY MODAL */}
       {activeStory && (
         <StoryModal
-          stories={SEED_LIVE_STORIES}
+          stories={activeStoriesList}
           currentStory={activeStory}
           onClose={() => setActiveStory(null)}
           onSelectStory={(story) => setActiveStory(story)}

@@ -11,11 +11,12 @@ import {
   limit,
 } from 'firebase/firestore';
 import { getFirestoreDb, getSavedFirebaseConfig } from './firebase';
-import { SEED_ARTICLES, SEED_AUTHORS } from '../data/seedData';
-import type { Article, Author } from '../types';
+import { SEED_ARTICLES, SEED_AUTHORS, SEED_LIVE_STORIES } from '../data/seedData';
+import type { Article, Author, LiveStory } from '../types';
 
 const ARTICLES_STORAGE_KEY = 'iamquickagent_articles_v2';
 const AUTHORS_STORAGE_KEY = 'iamquickagent_authors_v2';
+const LIVE_STORIES_STORAGE_KEY = 'iamquickagent_live_stories_v2';
 
 // Initialize local storage cache if not present
 function initializeLocalStorage(): { articles: Article[]; authors: Author[] } {
@@ -357,4 +358,138 @@ export function getStorageStatus(): {
     provider: 'Local Persistent Storage',
     details: 'Operating on Local IndexedDB/Storage. Add Firebase credentials to enable cross-device cloud sync.',
   };
+}
+
+/**
+ * Local storage helpers for Live Stories
+ */
+export function getLocalLiveStories(): LiveStory[] {
+  try {
+    const raw = localStorage.getItem(LIVE_STORIES_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {
+    console.error('Failed reading local live stories:', e);
+  }
+  return SEED_LIVE_STORIES;
+}
+
+export function setLocalLiveStories(stories: LiveStory[]): void {
+  try {
+    localStorage.setItem(LIVE_STORIES_STORAGE_KEY, JSON.stringify(stories));
+  } catch (e) {
+    console.error('Failed saving local live stories:', e);
+  }
+}
+
+/**
+ * Get all live stories from Firestore or Local Cache
+ */
+export async function getLiveStories(): Promise<LiveStory[]> {
+  const db = getFirestoreDb();
+  if (db) {
+    try {
+      const snap = await getDocs(collection(db, 'live_stories'));
+      if (!snap.empty) {
+        const stories = snap.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as Omit<LiveStory, 'id'>),
+        }));
+        setLocalLiveStories(stories);
+        return stories;
+      } else {
+        // Seed Firestore with initial live stories
+        for (const story of SEED_LIVE_STORIES) {
+          await setDoc(doc(db, 'live_stories', story.id), story);
+        }
+      }
+    } catch (e) {
+      console.warn('Firestore live stories fetch failed, falling back to local storage:', e);
+    }
+  }
+  return getLocalLiveStories();
+}
+
+/**
+ * Create a new live story
+ */
+export async function createLiveStory(data: Omit<LiveStory, 'id'>): Promise<LiveStory> {
+  const id = 'story-' + Date.now();
+  const newStory: LiveStory = { ...data, id };
+
+  const current = getLocalLiveStories();
+  setLocalLiveStories([newStory, ...current]);
+
+  const db = getFirestoreDb();
+  if (db) {
+    try {
+      await setDoc(doc(db, 'live_stories', id), newStory);
+    } catch (e) {
+      console.error('Failed saving live story to Firestore:', e);
+    }
+  }
+
+  return newStory;
+}
+
+/**
+ * Update an existing live story
+ */
+export async function updateLiveStory(
+  id: string,
+  updates: Partial<LiveStory>
+): Promise<LiveStory | null> {
+  const current = getLocalLiveStories();
+  const idx = current.findIndex((s) => s.id === id);
+  if (idx === -1) return null;
+
+  const updatedStory = { ...current[idx], ...updates, id };
+  current[idx] = updatedStory;
+  setLocalLiveStories([...current]);
+
+  const db = getFirestoreDb();
+  if (db) {
+    try {
+      await updateDoc(doc(db, 'live_stories', id), updates);
+    } catch (e) {
+      console.error('Failed updating live story in Firestore:', e);
+    }
+  }
+
+  return updatedStory;
+}
+
+/**
+ * Delete a live story
+ */
+export async function deleteLiveStory(id: string): Promise<boolean> {
+  const current = getLocalLiveStories();
+  const filtered = current.filter((s) => s.id !== id);
+  setLocalLiveStories(filtered);
+
+  const db = getFirestoreDb();
+  if (db) {
+    try {
+      await deleteDoc(doc(db, 'live_stories', id));
+    } catch (e) {
+      console.error('Failed deleting live story from Firestore:', e);
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Toggle the LIVE status of a story
+ */
+export async function toggleLiveStoryStatus(id: string): Promise<boolean> {
+  const current = getLocalLiveStories();
+  const story = current.find((s) => s.id === id);
+  if (!story) return false;
+
+  const newIsLive = !story.isLive;
+  await updateLiveStory(id, { isLive: newIsLive });
+  return newIsLive;
 }

@@ -25,8 +25,9 @@ import {
   Download,
   Zap,
   Rss,
+  Radio,
 } from 'lucide-react';
-import type { Article, Author, Category, FirebaseConfig } from '../types';
+import type { Article, Author, Category, FirebaseConfig, LiveStory } from '../types';
 import { slugify } from '../utils/seo';
 import {
   createArticle,
@@ -41,6 +42,7 @@ import {
   resetFirebaseClient,
 } from '../services/firebase';
 import { AiWireTab } from '../components/AiWireTab';
+import { LiveStoriesManagerTab } from '../components/LiveStoriesManagerTab';
 import {
   resolveCuratedImageUrl,
   rewriteNewsWithGemini,
@@ -50,7 +52,9 @@ import {
 interface CmsViewProps {
   articles: Article[];
   authors: Author[];
+  liveStories?: LiveStory[];
   onRefreshArticles: () => Promise<void>;
+  onRefreshLiveStories?: () => Promise<void>;
   onCloseCms: () => void;
   onPreviewArticle: (article: Article) => void;
 }
@@ -82,7 +86,9 @@ const CURATED_IMAGES = [
 export const CmsView: React.FC<CmsViewProps> = ({
   articles,
   authors,
+  liveStories = [],
   onRefreshArticles,
+  onRefreshLiveStories,
   onCloseCms,
   onPreviewArticle,
 }) => {
@@ -92,7 +98,7 @@ export const CmsView: React.FC<CmsViewProps> = ({
   const [authError, setAuthError] = useState('');
 
   // Active CMS Tab
-  const [activeTab, setActiveTab] = useState<'manage' | 'editor' | 'wire' | 'authors' | 'deploy'>('manage');
+  const [activeTab, setActiveTab] = useState<'manage' | 'editor' | 'wire' | 'stories' | 'authors' | 'deploy'>('manage');
 
   // Article Editor State
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
@@ -535,6 +541,16 @@ export const CmsView: React.FC<CmsViewProps> = ({
         <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
+            onClick={() => setActiveTab('stories')}
+            className="px-3 py-2 rounded-lg bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30 font-intel font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+            title="Manage homepage top circle live stories"
+          >
+            <Radio className="w-4 h-4 text-red-400 animate-pulse" />
+            <span>Live Stories ({liveStories.length})</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('wire')}
             className="px-3 py-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 font-intel font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
           >
@@ -638,6 +654,22 @@ export const CmsView: React.FC<CmsViewProps> = ({
           <span>AI Wire & News Rewriter</span>
           <span className="px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/40">
             AUTO
+          </span>
+        </button>
+        <button
+          id="cms-tab-stories"
+          type="button"
+          onClick={() => setActiveTab('stories')}
+          className={`pb-3 px-3 font-semibold transition-colors whitespace-nowrap relative flex items-center gap-1.5 ${
+            activeTab === 'stories'
+              ? 'text-amber-400 border-b-2 border-amber-500'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Radio className="w-3.5 h-3.5 text-red-500 animate-pulse" />
+          <span>Live Stories</span>
+          <span className="px-1.5 py-0.2 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold border border-red-500/30">
+            {liveStories.length}
           </span>
         </button>
         <button
@@ -1170,6 +1202,16 @@ export const CmsView: React.FC<CmsViewProps> = ({
           authors={authors}
           onLoadIntoEditor={handleLoadRewrittenIntoEditor}
           onPublishImmediately={handlePublishRewrittenImmediately}
+          onShowToast={showToast}
+        />
+      )}
+
+      {/* TAB: LIVE STORIES MANAGER */}
+      {activeTab === 'stories' && (
+        <LiveStoriesManagerTab
+          stories={liveStories}
+          articles={articles}
+          onRefreshStories={onRefreshLiveStories || onRefreshArticles}
           onShowToast={showToast}
         />
       )}

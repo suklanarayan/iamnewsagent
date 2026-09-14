@@ -113,3 +113,36 @@ export async function rewriteNewsWithGemini(params: {
     throw err;
   }
 }
+
+export interface LiveStoryPointsResult {
+  subtitle: string;
+  keyPoints: string[];
+  imageTopic?: string;
+}
+
+export async function generateLiveStoryPoints(params: {
+  title: string;
+  category?: string;
+  context?: string;
+}): Promise<LiveStoryPointsResult> {
+  try {
+    const res = await fetch('/api/news/generate-story-points', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    if (!data.success || !data.data) {
+      throw new Error(data.error || 'Failed generating live story points');
+    }
+    return data.data;
+  } catch (err) {
+    console.error('Failed generating live story points:', err);
+    throw err;
+  }
+}
+

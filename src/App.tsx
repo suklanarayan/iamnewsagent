@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Article, Author } from './types';
+import type { Article, Author, LiveStory } from './types';
 import {
   getArticles,
   getAuthors,
+  getLiveStories,
   getArticleBySlug,
   incrementArticleViews,
   getStorageStatus,
@@ -21,6 +22,7 @@ import { injectHomeSchema } from './utils/seo';
 export default function App() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [authors, setAuthors] = useState<Author[]>([]);
+  const [liveStories, setLiveStories] = useState<LiveStory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Navigation State
@@ -34,15 +36,17 @@ export default function App() {
   // Storage connection status
   const [storageStatus, setStorageStatus] = useState(getStorageStatus());
 
-  // Load articles & authors
+  // Load articles, authors & live stories
   const loadData = useCallback(async () => {
     try {
-      const [fetchedArticles, fetchedAuthors] = await Promise.all([
+      const [fetchedArticles, fetchedAuthors, fetchedStories] = await Promise.all([
         getArticles(),
         getAuthors(),
+        getLiveStories(),
       ]);
       setArticles(fetchedArticles);
       setAuthors(fetchedAuthors);
+      setLiveStories(fetchedStories);
       setStorageStatus(getStorageStatus());
     } catch (e) {
       console.error('Error loading news data:', e);
@@ -206,6 +210,7 @@ export default function App() {
               <HomeView
                 articles={articles.filter((a) => a.status === 'published')}
                 authors={authors}
+                liveStories={liveStories}
                 activeCategory={activeCategory}
                 onSelectCategory={setActiveCategory}
                 onSelectArticle={handleSelectArticle}
@@ -243,7 +248,9 @@ export default function App() {
               <CmsView
                 articles={articles}
                 authors={authors}
+                liveStories={liveStories}
                 onRefreshArticles={loadData}
+                onRefreshLiveStories={loadData}
                 onCloseCms={handleNavigateHome}
                 onPreviewArticle={(art) => {
                   setSelectedArticle(art);

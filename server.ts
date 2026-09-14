@@ -342,6 +342,66 @@ Return ONLY a valid JSON object with these keys:
   }
 });
 
+// 5. Generate Live Story Quick Updates with Gemini
+app.post('/api/news/generate-story-points', async (req, res) => {
+  const { title, category, context } = req.body;
+  if (!title) {
+    return res.status(400).json({ error: 'Story title is required.' });
+  }
+
+  try {
+    const ai = getGenAI();
+    const prompt = `You are an expert real-time news desk editor.
+Generate live update points for a short-form Live Story card titled "${title}" in category "${category || 'General'}".
+${context ? `Context/Notes: "${context}"` : ''}
+
+Generate:
+1. "subtitle": A very short 1-2 word location or status (e.g. "Live", "New Delhi", "Launch", "Markets", "Finals", "Breaking").
+2. "keyPoints": Exactly 3 to 4 crisp, authoritative, one-sentence live updates or key developments.
+3. "imageTopic": A 1-2 word visual search topic for an unsplash image (e.g. "rocket", "summit", "cricket", "ai", "finance").
+
+Return ONLY valid JSON matching this schema:
+{
+  "subtitle": string,
+  "keyPoints": string[],
+  "imageTopic": string
+}`;
+
+    const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
+    let outputText = '';
+    let lastError: any = null;
+
+    for (const model of candidateModels) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents: prompt,
+          config: { responseMimeType: 'application/json' },
+        });
+        outputText = response.text || '{}';
+        if (outputText) break;
+      } catch (err) {
+        lastError = err;
+        console.warn(`Model ${model} error in generate-story-points, trying fallback...`, (err as Error)?.message);
+      }
+    }
+
+    if (!outputText && lastError) throw lastError;
+
+    const parsed = JSON.parse(outputText || '{}');
+    res.json({
+      success: true,
+      data: parsed,
+    });
+  } catch (err) {
+    console.error('Error generating live story points:', err);
+    res.status(500).json({
+      success: false,
+      error: (err as Error).message || 'Failed generating live story points',
+    });
+  }
+});
+
 // Start server
 async function start() {
   if (process.env.NODE_ENV !== 'production') {
