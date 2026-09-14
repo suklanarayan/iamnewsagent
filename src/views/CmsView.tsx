@@ -23,6 +23,8 @@ import {
   UserPlus,
   Check,
   Download,
+  Zap,
+  Rss,
 } from 'lucide-react';
 import type { Article, Author, Category, FirebaseConfig } from '../types';
 import { slugify } from '../utils/seo';
@@ -38,6 +40,12 @@ import {
   saveFirebaseConfigToStorage,
   resetFirebaseClient,
 } from '../services/firebase';
+import { AiWireTab } from '../components/AiWireTab';
+import {
+  resolveCuratedImageUrl,
+  rewriteNewsWithGemini,
+  type RewrittenArticleResult,
+} from '../services/aiNewsService';
 
 interface CmsViewProps {
   articles: Article[];
@@ -84,7 +92,7 @@ export const CmsView: React.FC<CmsViewProps> = ({
   const [authError, setAuthError] = useState('');
 
   // Active CMS Tab
-  const [activeTab, setActiveTab] = useState<'manage' | 'editor' | 'authors' | 'deploy'>('manage');
+  const [activeTab, setActiveTab] = useState<'manage' | 'editor' | 'wire' | 'authors' | 'deploy'>('manage');
 
   // Article Editor State
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
@@ -92,7 +100,7 @@ export const CmsView: React.FC<CmsViewProps> = ({
   const [slug, setSlug] = useState('');
   const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
   const [deck, setDeck] = useState('');
-  const [category, setCategory] = useState<Category>('AI & Technology');
+  const [category, setCategory] = useState<Category>('Technology');
   const [authorId, setAuthorId] = useState<string>(authors[0]?.id || '');
   const [featuredImage, setFeaturedImage] = useState(CURATED_IMAGES[0].url);
   const [imageCaption, setImageCaption] = useState('');
@@ -186,7 +194,7 @@ export const CmsView: React.FC<CmsViewProps> = ({
     setSlug('');
     setIsSlugManuallyEdited(false);
     setDeck('');
-    setCategory('AI & Technology');
+    setCategory('Technology');
     setAuthorId(authors[0]?.id || '');
     setFeaturedImage(CURATED_IMAGES[0].url);
     setImageCaption('');
@@ -201,6 +209,99 @@ export const CmsView: React.FC<CmsViewProps> = ({
     ]);
     setContent(`Autonomous agents and verified machine intelligences are redefining strategic operations across global borders.\n\n## Structural Operational Overview\n\n1. Real-time verification without legacy clearance lag.\n2. Tamper-evident cryptographic state transitions.\n3. Continuous regulatory oversight.\n\n> "Speed of intelligence without mathematical certainty is merely accelerated error."\n\nFurther policy implementations are slated for review by international standards bodies.`);
     setActiveTab('editor');
+  };
+
+  // Load AI rewritten story directly into Editor to polish
+  const handleLoadRewrittenIntoEditor = (data: RewrittenArticleResult & { sourceTitle?: string; sourceUrl?: string }) => {
+    setEditingArticleId(null);
+    setHeadline(data.headline);
+    setSlug(slugify(data.headline));
+    setIsSlugManuallyEdited(false);
+    setDeck(data.deck);
+    setCategory((data.category as Category) || 'Technology');
+    setFeaturedImage(resolveCuratedImageUrl(data.category, data.imageTopic));
+    setImageCaption(data.imageCaption || `Wire reporting filed by editorial desk.`);
+    setIsBreaking(false);
+    setStatus('published');
+    setTagsInput((data.tags || []).join(', '));
+    setReadTimeMinutes(data.readTimeMinutes || 4);
+    setKeyTakeaways(data.keyTakeaways && data.keyTakeaways.length > 0 ? data.keyTakeaways : ['']);
+    setContent(data.content);
+    setActiveTab('editor');
+    showToast('AI draft loaded into editor! Review, tweak, and click Publish when ready.');
+  };
+
+  // 1-Click Publish from AI Wire
+  const handlePublishRewrittenImmediately = async (
+    data: RewrittenArticleResult,
+    pubAuthorId: string
+  ) => {
+    const cleanSlug = slugify(data.headline);
+    const now = new Date().toISOString();
+    const coverImg = resolveCuratedImageUrl(data.category, data.imageTopic);
+
+    await createArticle({
+      headline: data.headline,
+      slug: cleanSlug,
+      deck: data.deck,
+      category: (data.category as Category) || 'Technology',
+      authorId: pubAuthorId || authors[0]?.id || 'author-1',
+      featuredImage: coverImg,
+      imageCaption: data.imageCaption || 'Intelligence dispatch wire archive.',
+      isBreaking: false,
+      status: 'published',
+      tags: data.tags || ['Wire News'],
+      readTimeMinutes: data.readTimeMinutes || 4,
+      keyTakeaways: data.keyTakeaways || [],
+      content: data.content,
+      publishedAt: now,
+      updatedAt: now,
+    });
+
+    await onRefreshArticles();
+    setActiveTab('manage');
+  };
+
+  // AI Assist directly inside the Manual Editor
+  const [isAiAssisting, setIsAiAssisting] = useState(false);
+  const handleAiAssistInEditor = async () => {
+    if (!content.trim() && !headline.trim()) {
+      alert('Please enter at least a draft headline or story notes first.');
+      return;
+    }
+
+    setIsAiAssisting(true);
+    try {
+      showToast('Analyzing draft & generating Key Takeaways with Gemini...');
+      const result = await rewriteNewsWithGemini({
+        headline,
+        rawText: content,
+        preferredCategory: category,
+      });
+
+      if (!headline.trim()) {
+        setHeadline(result.headline);
+        setSlug(slugify(result.headline));
+      }
+      if (!deck.trim()) {
+        setDeck(result.deck);
+      }
+      if (result.keyTakeaways && result.keyTakeaways.length > 0) {
+        setKeyTakeaways(result.keyTakeaways);
+      }
+      if (result.tags && result.tags.length > 0 && !tagsInput.trim()) {
+        setTagsInput(result.tags.join(', '));
+      }
+      if (result.readTimeMinutes) {
+        setReadTimeMinutes(result.readTimeMinutes);
+      }
+      showToast('Key Takeaways and metadata auto-generated with Gemini AI!');
+    } catch (err) {
+      console.error(err);
+      showToast(`AI Assist error: ${(err as Error).message}`);
+    } finally {
+      setIsAiAssisting(false);
+    }
   };
 
   // Populate editor with existing article
@@ -432,6 +533,15 @@ export const CmsView: React.FC<CmsViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setActiveTab('wire')}
+            className="px-3 py-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 font-intel font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+          >
+            <Zap className="w-4 h-4 fill-current text-amber-400" />
+            <span>AI News Rewriter</span>
+          </button>
+
           <a
             href="/project-source.zip"
             download="iamnewsagent-source.zip"
@@ -488,12 +598,12 @@ export const CmsView: React.FC<CmsViewProps> = ({
       )}
 
       {/* CMS Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-800 text-xs font-intel">
+      <div className="flex items-center gap-2 border-b border-slate-800 text-xs font-intel overflow-x-auto no-scrollbar">
         <button
           id="cms-tab-manage"
           type="button"
           onClick={() => setActiveTab('manage')}
-          className={`pb-3 px-3 font-semibold transition-colors relative ${
+          className={`pb-3 px-3 font-semibold transition-colors whitespace-nowrap relative ${
             activeTab === 'manage'
               ? 'text-amber-400 border-b-2 border-amber-500'
               : 'text-slate-400 hover:text-white'
@@ -505,19 +615,36 @@ export const CmsView: React.FC<CmsViewProps> = ({
           id="cms-tab-editor"
           type="button"
           onClick={() => setActiveTab('editor')}
-          className={`pb-3 px-3 font-semibold transition-colors relative ${
+          className={`pb-3 px-3 font-semibold transition-colors whitespace-nowrap relative flex items-center gap-1.5 ${
             activeTab === 'editor'
               ? 'text-amber-400 border-b-2 border-amber-500'
               : 'text-slate-400 hover:text-white'
           }`}
         >
-          {editingArticleId ? 'Edit Dispatch' : 'New Dispatch Editor'}
+          <Edit3 className="w-3.5 h-3.5" />
+          <span>{editingArticleId ? 'Edit Dispatch' : 'Manual News Editor'}</span>
+        </button>
+        <button
+          id="cms-tab-wire"
+          type="button"
+          onClick={() => setActiveTab('wire')}
+          className={`pb-3 px-3 font-semibold transition-colors whitespace-nowrap relative flex items-center gap-1.5 ${
+            activeTab === 'wire'
+              ? 'text-amber-400 border-b-2 border-amber-500'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Zap className="w-3.5 h-3.5 text-amber-400 fill-current" />
+          <span>AI Wire & News Rewriter</span>
+          <span className="px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/40">
+            AUTO
+          </span>
         </button>
         <button
           id="cms-tab-authors"
           type="button"
           onClick={() => setActiveTab('authors')}
-          className={`pb-3 px-3 font-semibold transition-colors relative ${
+          className={`pb-3 px-3 font-semibold transition-colors whitespace-nowrap relative ${
             activeTab === 'authors'
               ? 'text-amber-400 border-b-2 border-amber-500'
               : 'text-slate-400 hover:text-white'
@@ -529,7 +656,7 @@ export const CmsView: React.FC<CmsViewProps> = ({
           id="cms-tab-deploy"
           type="button"
           onClick={() => setActiveTab('deploy')}
-          className={`pb-3 px-3 font-semibold transition-colors relative ${
+          className={`pb-3 px-3 font-semibold transition-colors whitespace-nowrap relative ${
             activeTab === 'deploy'
               ? 'text-amber-400 border-b-2 border-amber-500'
               : 'text-slate-400 hover:text-white'
@@ -546,14 +673,24 @@ export const CmsView: React.FC<CmsViewProps> = ({
             <h3 className="text-base font-bold font-editorial text-slate-200">
               Published Intelligence Articles
             </h3>
-            <button
-              type="button"
-              onClick={handleNewArticle}
-              className="px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-intel font-bold text-xs flex items-center gap-1"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Create New Article</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('wire')}
+                className="px-3 py-1.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 font-intel font-bold text-xs flex items-center gap-1 transition-colors"
+              >
+                <Zap className="w-3.5 h-3.5 fill-current" />
+                <span>AI Wire & Rewriter</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleNewArticle}
+                className="px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-intel font-bold text-xs flex items-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Manual New Article</span>
+              </button>
+            </div>
           </div>
 
           <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto shadow-xl">
@@ -651,6 +788,40 @@ export const CmsView: React.FC<CmsViewProps> = ({
       {/* TAB 2: RICH ARTICLE EDITOR */}
       {activeTab === 'editor' && (
         <form onSubmit={handleSaveArticle} className="space-y-6">
+          {/* Quick Step Guide for Manual News Publishing */}
+          <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs font-intel space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-amber-400 font-bold">
+                <FileText className="w-4 h-4" />
+                <span>How to Add & Publish News Manually:</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleAiAssistInEditor}
+                disabled={isAiAssisting}
+                className="self-start sm:self-auto px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 font-bold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                title="Auto-generate Key Takeaways & polish headline from content"
+              >
+                <Sparkles className={`w-3.5 h-3.5 ${isAiAssisting ? 'animate-spin' : ''}`} />
+                <span>{isAiAssisting ? 'AI Analyzing...' : '⚡ AI Polish & Auto-Takeaways'}</span>
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-slate-300">
+              <div className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center flex-shrink-0 text-[11px]">1</span>
+                <span><strong>Write Headline & Deck:</strong> Enter news title, pick Category & Cover Image on the right.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center flex-shrink-0 text-[11px]">2</span>
+                <span><strong>Add Key Takeaways & Story:</strong> Provide 3 executive takeaway bullets & write in Markdown.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center flex-shrink-0 text-[11px]">3</span>
+                <span><strong>Publish to Cloud:</strong> Click the amber button below to go live immediately on iamquickagent.com.</span>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left Column: Core Fields */}
             <div className="lg:col-span-8 space-y-5">
@@ -991,6 +1162,16 @@ export const CmsView: React.FC<CmsViewProps> = ({
             </div>
           </div>
         </form>
+      )}
+
+      {/* TAB: AI WIRE & AUTO-NEWS FETCHER */}
+      {activeTab === 'wire' && (
+        <AiWireTab
+          authors={authors}
+          onLoadIntoEditor={handleLoadRewrittenIntoEditor}
+          onPublishImmediately={handlePublishRewrittenImmediately}
+          onShowToast={showToast}
+        />
       )}
 
       {/* TAB 3: AUTHORS DIRECTORY */}
