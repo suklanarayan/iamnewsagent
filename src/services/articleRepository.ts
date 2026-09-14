@@ -29,6 +29,16 @@ function initializeLocalStorage(): { articles: Article[]; authors: Author[] } {
       const parsed = JSON.parse(cachedArticles);
       if (Array.isArray(parsed) && parsed.length > 0) {
         articles = parsed;
+        let merged = false;
+        for (const seedArt of SEED_ARTICLES) {
+          if (!articles.some((a) => a.id === seedArt.id || a.slug === seedArt.slug)) {
+            articles = [seedArt, ...articles];
+            merged = true;
+          }
+        }
+        if (merged) {
+          localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(articles));
+        }
       } else {
         localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(SEED_ARTICLES));
       }
@@ -41,6 +51,16 @@ function initializeLocalStorage(): { articles: Article[]; authors: Author[] } {
       const parsed = JSON.parse(cachedAuthors);
       if (Array.isArray(parsed) && parsed.length > 0) {
         authors = parsed;
+        let mergedAuthors = false;
+        for (const seedAuth of SEED_AUTHORS) {
+          if (!authors.some((a) => a.id === seedAuth.id)) {
+            authors = [seedAuth, ...authors];
+            mergedAuthors = true;
+          }
+        }
+        if (mergedAuthors) {
+          localStorage.setItem(AUTHORS_STORAGE_KEY, JSON.stringify(authors));
+        }
       } else {
         localStorage.setItem(AUTHORS_STORAGE_KEY, JSON.stringify(SEED_AUTHORS));
       }
@@ -112,6 +132,17 @@ export async function getArticles(filter?: {
       const snap = await getDocs(q);
       if (!snap.empty) {
         list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Article, 'id'>) }));
+        // Ensure newest seed articles (e.g. newly published articles) exist in Firestore
+        for (const seedArt of SEED_ARTICLES) {
+          if (!list.some((a) => a.id === seedArt.id || a.slug === seedArt.slug)) {
+            try {
+              await setDoc(doc(db, 'articles', seedArt.id), seedArt);
+              list.unshift(seedArt);
+            } catch (err) {
+              console.warn('Silent sync seed article:', err);
+            }
+          }
+        }
         setLocalArticles(list); // Keep local backup synced
       } else {
         // If Firestore collection is empty, seed it with initial articles
@@ -292,7 +323,17 @@ export async function getAuthors(): Promise<Author[]> {
     try {
       const snap = await getDocs(collection(db, 'authors'));
       if (!snap.empty) {
-        const authors = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Author, 'id'>) }));
+        let authors = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Author, 'id'>) }));
+        for (const seedAuth of SEED_AUTHORS) {
+          if (!authors.some((a) => a.id === seedAuth.id)) {
+            try {
+              await setDoc(doc(db, 'authors', seedAuth.id), seedAuth);
+              authors.unshift(seedAuth);
+            } catch (err) {
+              console.warn('Silent sync seed author:', err);
+            }
+          }
+        }
         setLocalAuthors(authors);
         return authors;
       } else {
@@ -368,7 +409,19 @@ export function getLocalLiveStories(): LiveStory[] {
     const raw = localStorage.getItem(LIVE_STORIES_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        let merged = false;
+        for (const seedStory of SEED_LIVE_STORIES) {
+          if (!parsed.some((s: LiveStory) => s.id === seedStory.id)) {
+            parsed.unshift(seedStory);
+            merged = true;
+          }
+        }
+        if (merged) {
+          localStorage.setItem(LIVE_STORIES_STORAGE_KEY, JSON.stringify(parsed));
+        }
+        return parsed;
+      }
     }
   } catch (e) {
     console.error('Failed reading local live stories:', e);

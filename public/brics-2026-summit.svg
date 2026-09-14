@@ -1,0 +1,173 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradients -->
+    <radialGradient id="spaceGlow" cx="50%" cy="40%" r="65%">
+      <stop offset="0%" stop-color="#1e3a8a" stop-opacity="0.9" />
+      <stop offset="45%" stop-color="#0f172a" stop-opacity="0.98" />
+      <stop offset="100%" stop-color="#020617" stop-opacity="1" />
+    </radialGradient>
+
+    <radialGradient id="sunburst" cx="50%" cy="65%" r="40%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.7" />
+      <stop offset="25%" stop-color="#3b82f6" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0" />
+    </radialGradient>
+
+    <linearGradient id="goldText" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="35%" stop-color="#f59e0b" />
+      <stop offset="70%" stop-color="#d97706" />
+      <stop offset="100%" stop-color="#b45309" />
+    </linearGradient>
+
+    <linearGradient id="greenText" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#86efac" />
+      <stop offset="50%" stop-color="#22c55e" />
+      <stop offset="100%" stop-color="#15803d" />
+    </linearGradient>
+
+    <linearGradient id="blueBanner" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1e3a8a" stop-opacity="0" />
+      <stop offset="15%" stop-color="#1d4ed8" stop-opacity="0.9" />
+      <stop offset="50%" stop-color="#2563eb" stop-opacity="0.95" />
+      <stop offset="85%" stop-color="#1d4ed8" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#1e3a8a" stop-opacity="0" />
+    </linearGradient>
+
+    <linearGradient id="globeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60a5fa" />
+      <stop offset="40%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#1e3a8a" />
+    </linearGradient>
+
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Sky & Ambient Background -->
+  <rect width="1200" height="675" fill="url(#spaceGlow)" />
+  <circle cx="600" cy="400" r="450" fill="url(#sunburst)" />
+
+  <!-- Grid network lines representing global digital connectivity -->
+  <g stroke="#38bdf8" stroke-width="0.7" opacity="0.35">
+    <ellipse cx="600" cy="300" rx="340" ry="180" fill="none" />
+    <ellipse cx="600" cy="300" rx="260" ry="240" fill="none" />
+    <ellipse cx="600" cy="300" rx="320" ry="80" fill="none" />
+    <line x1="260" y1="300" x2="940" y2="300" />
+    <line x1="320" y1="180" x2="880" y2="420" />
+    <line x1="320" y1="420" x2="880" y2="180" />
+  </g>
+
+  <!-- Central Stylized Globe -->
+  <circle cx="600" cy="320" r="170" fill="url(#globeGrad)" filter="url(#glow)" opacity="0.9" />
+  
+  <!-- Stylized Continents on Globe -->
+  <g fill="#10b981" opacity="0.7">
+    <!-- Asia & India shape -->
+    <path d="M 590 270 Q 610 280 620 310 Q 615 340 595 350 Q 580 330 590 270 Z" />
+    <path d="M 620 250 Q 670 260 690 300 Q 660 320 630 290 Z" />
+    <!-- Africa shape -->
+    <path d="M 510 280 Q 550 290 545 350 Q 520 370 500 320 Z" />
+    <!-- South America & Americas shape -->
+    <path d="M 460 330 Q 480 340 470 380 Q 450 370 460 330 Z" />
+    <!-- Russia & Eurasia -->
+    <path d="M 540 220 Q 620 210 700 230 Q 660 260 560 250 Z" />
+  </g>
+
+  <!-- Constellation Nodes & Interconnecting Data Arcs -->
+  <g fill="#fef08a" stroke="#ffffff" stroke-width="1.2">
+    <circle cx="605" cy="310" r="5" /> <!-- India -->
+    <circle cx="660" cy="270" r="4" /> <!-- China -->
+    <circle cx="580" cy="235" r="4" /> <!-- Russia -->
+    <circle cx="525" cy="350" r="4" /> <!-- South Africa -->
+    <circle cx="465" cy="355" r="4" /> <!-- Brazil -->
+    <circle cx="545" cy="290" r="3.5" /> <!-- Egypt / UAE -->
+    <circle cx="700" cy="340" r="3.5" /> <!-- Indonesia -->
+  </g>
+  <path d="M 605 310 Q 580 270 580 235 Q 620 250 660 270 Q 635 290 605 310" fill="none" stroke="#fde047" stroke-width="2" opacity="0.8" />
+  <path d="M 605 310 Q 560 310 525 350 Q 500 370 465 355" fill="none" stroke="#38bdf8" stroke-width="2" opacity="0.8" />
+
+  <!-- Flag Poles & National Flags Array (11 Nations across top arc) -->
+  <g transform="translate(100, 60)">
+    <!-- Brazil -->
+    <rect x="20" y="20" width="70" height="42" rx="3" fill="#009c3b" stroke="#ffffff" stroke-width="1.5" />
+    <polygon points="55,25 85,41 55,57 25,41" fill="#ffdf00" />
+    <circle cx="55" cy="41" r="9" fill="#002776" />
+
+    <!-- Russia -->
+    <rect x="110" y="15" width="70" height="42" rx="3" fill="#ffffff" stroke="#ffffff" stroke-width="1.5" />
+    <rect x="110" y="29" width="70" height="14" fill="#0039a6" />
+    <rect x="110" y="43" width="70" height="14" fill="#d52b1e" />
+
+    <!-- India (Tricolor + Ashoka Chakra) -->
+    <rect x="200" y="10" width="76" height="46" rx="3" fill="#ff9933" stroke="#ffffff" stroke-width="2" />
+    <rect x="200" y="25" width="76" height="15" fill="#ffffff" />
+    <rect x="200" y="40" width="76" height="16" fill="#138808" />
+    <circle cx="238" cy="32.5" r="6" fill="none" stroke="#000080" stroke-width="1.2" />
+
+    <!-- China -->
+    <rect x="296" y="10" width="74" height="45" rx="3" fill="#ee1c25" stroke="#ffffff" stroke-width="1.5" />
+    <polygon points="310,20 313,28 305,23 315,23 307,28" fill="#ffff00" />
+
+    <!-- South Africa -->
+    <rect x="390" y="12" width="74" height="45" rx="3" fill="#007a4d" stroke="#ffffff" stroke-width="1.5" />
+    <polygon points="390,12 420,34.5 390,57" fill="#000000" stroke="#ffb612" stroke-width="2" />
+    <rect x="420" y="12" width="44" height="14" fill="#de3831" />
+    <rect x="420" y="43" width="44" height="14" fill="#002395" />
+
+    <!-- Iran -->
+    <rect x="484" y="15" width="70" height="42" rx="3" fill="#239f40" stroke="#ffffff" stroke-width="1.5" />
+    <rect x="484" y="29" width="70" height="14" fill="#ffffff" />
+    <rect x="484" y="43" width="70" height="14" fill="#da0000" />
+
+    <!-- UAE -->
+    <rect x="574" y="18" width="70" height="42" rx="3" fill="#00732f" stroke="#ffffff" stroke-width="1.5" />
+    <rect x="574" y="32" width="70" height="14" fill="#ffffff" />
+    <rect x="574" y="46" width="70" height="14" fill="#000000" />
+    <rect x="574" y="18" width="18" height="42" fill="#ff0000" />
+
+    <!-- Egypt -->
+    <rect x="664" y="22" width="70" height="42" rx="3" fill="#c8102e" stroke="#ffffff" stroke-width="1.5" />
+    <rect x="664" y="36" width="70" height="14" fill="#ffffff" />
+    <rect x="664" y="50" width="70" height="14" fill="#000000" />
+
+    <!-- Ethiopia -->
+    <rect x="754" y="25" width="70" height="42" rx="3" fill="#009a44" stroke="#ffffff" stroke-width="1.5" />
+    <rect x="754" y="39" width="70" height="14" fill="#fed100" />
+    <rect x="754" y="53" width="70" height="14" fill="#ef3340" />
+
+    <!-- Indonesia -->
+    <rect x="844" y="30" width="70" height="42" rx="3" fill="#ce1126" stroke="#ffffff" stroke-width="1.5" />
+    <rect x="844" y="51" width="70" height="21" fill="#ffffff" />
+  </g>
+
+  <!-- Big Bold Headline: BRICS 2026 -->
+  <g text-anchor="middle">
+    <!-- Outer Glow for Text -->
+    <text x="600" y="495" font-family="'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" font-size="88" font-weight="900" letter-spacing="4" fill="#000000" opacity="0.6">
+      BRICS 2026
+    </text>
+
+    <!-- Front Gradient Text -->
+    <text x="600" y="490" font-family="'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" font-size="88" font-weight="900" letter-spacing="4">
+      <tspan fill="url(#greenText)">BRICS </tspan>
+      <tspan fill="url(#goldText)">2026</tspan>
+    </text>
+  </g>
+
+  <!-- Gold & Blue Ribbon Strip -->
+  <rect x="150" y="525" width="900" height="65" rx="32" fill="url(#blueBanner)" />
+  <rect x="150" y="525" width="900" height="65" rx="32" fill="none" stroke="url(#goldText)" stroke-width="2.5" opacity="0.75" />
+
+  <!-- Subtitle Text -->
+  <text x="600" y="567" text-anchor="middle" font-family="'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" font-size="28" font-weight="700" fill="#ffffff" letter-spacing="1.5">
+    India Summit &amp; Global South Leadership
+  </text>
+
+  <!-- Editorial Meta Footnote -->
+  <text x="600" y="625" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600" fill="#94a3b8" letter-spacing="1">
+    BHARAT MANDAPAM, NEW DELHI &bull; SPECIAL EDITORIAL DISPATCH BY NARAYAN SHUKLA
+  </text>
+</svg>

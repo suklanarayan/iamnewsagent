@@ -2,6 +2,19 @@ import type { Article, Author, BannerAd, LiveStory, TrendingItem, OpinionPiece }
 
 export const SEED_AUTHORS: Author[] = [
   {
+    id: 'author-narayan-shukla',
+    name: 'Narayan Shukla',
+    role: 'Digital Marketing Consultant (11 Yrs Exp) & Geopolitical Analyst',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+    bio: 'Digital Marketing Consultant with 11+ years of experience analyzing search engine intelligence, global geopolitics, digital public infrastructure, and AI-driven market trends across India and international economies.',
+    location: 'India',
+    verified: true,
+    twitter: '@narayan_shukla',
+    linkedin: 'narayan-shukla',
+    email: 'SUKLA.NARAYAN007@gmail.com',
+    joinedDate: '2026-09-14',
+  },
+  {
     id: 'author-faye-dsouza',
     name: "Faye D'Souza",
     role: 'Independent Journalist & Senior Editor',
@@ -56,6 +69,20 @@ export const SEED_AUTHORS: Author[] = [
 ];
 
 export const SEED_LIVE_STORIES: LiveStory[] = [
+  {
+    id: 'story-brics-2026',
+    title: '18th BRICS Summit',
+    subtitle: 'New Delhi',
+    image: '/brics-2026-summit.svg',
+    isLive: true,
+    category: 'World',
+    articleSlug: 'from-voice-to-impact-18th-brics-summit-india-global-role',
+    keyPoints: [
+      'Unanimous adoption of the New Delhi Declaration 2026 across 11 member nations at Bharat Mandapam.',
+      'PM Modi tables 10-point global governance roadmap on Representation, Responsiveness & Rule-making.',
+      'China and Russia formally back permanent UN Security Council seats for India and Brazil.'
+    ]
+  },
   {
     id: 'story-g20',
     title: 'G20 Summit',
@@ -213,14 +240,21 @@ export const SEED_LIVE_STORIES: LiveStory[] = [
 ];
 
 export const SEED_TRENDING_NOW: TrendingItem[] = [
-  { id: 1, rank: 1, title: 'Chandrayaan-4 mission updates', category: 'Science', searchVolume: '320K searches', slug: 'india-space-ambitions-reach-new-heights' },
-  { id: 2, rank: 2, title: 'India vs Bangladesh live score', category: 'Sports', searchVolume: '280K searches', slug: 'india-space-ambitions-reach-new-heights' },
-  { id: 3, rank: 3, title: 'iPhone 17 launch highlights', category: 'Technology', searchVolume: '240K searches', slug: 'ai-is-reshaping-how-we-work-are-we-ready' },
-  { id: 4, rank: 4, title: 'GST reform latest news', category: 'Business', searchVolume: '190K searches', slug: 'markets-rally-as-global-cues-turn-positive' },
-  { id: 5, rank: 5, title: 'West Bengal Durga Puja preparations', category: 'Culture', searchVolume: '150K searches', slug: 'durga-puja-2025-tradition-culture-modern-kolkata' }
+  { id: 1, rank: 1, title: '18th BRICS Summit New Delhi Declaration', category: 'World', searchVolume: '460K searches', slug: 'from-voice-to-impact-18th-brics-summit-india-global-role' },
+  { id: 2, rank: 2, title: 'Chandrayaan-4 mission updates', category: 'Science', searchVolume: '320K searches', slug: 'india-space-ambitions-reach-new-heights' },
+  { id: 3, rank: 3, title: 'India vs Bangladesh live score', category: 'Sports', searchVolume: '280K searches', slug: 'india-space-ambitions-reach-new-heights' },
+  { id: 4, rank: 4, title: 'iPhone 17 launch highlights', category: 'Technology', searchVolume: '240K searches', slug: 'ai-is-reshaping-how-we-work-are-we-ready' },
+  { id: 5, rank: 5, title: 'GST reform latest news', category: 'Business', searchVolume: '190K searches', slug: 'markets-rally-as-global-cues-turn-positive' }
 ];
 
 export const SEED_OPINIONS: OpinionPiece[] = [
+  {
+    id: 'op-brics-shukla',
+    authorName: 'Narayan Shukla',
+    authorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+    title: "From Voice to Impact: What the 18th BRICS Summit Actually Signals About India's Global Role",
+    slug: 'from-voice-to-impact-18th-brics-summit-india-global-role'
+  },
   {
     id: 'op-1',
     authorName: 'Swati Chaturvedi',
@@ -252,6 +286,120 @@ export const SEED_OPINIONS: OpinionPiece[] = [
 ];
 
 export const SEED_ARTICLES: Article[] = [
+  {
+    id: 'art-brics-2026-summit',
+    slug: 'from-voice-to-impact-18th-brics-summit-india-global-role',
+    headline: "From Voice to Impact: What the 18th BRICS Summit Actually Signals About India's Global Role",
+    deck: "Bharat Mandapam, New Delhi. September 12–13, 2026. Eleven nations, one declaration, and a Prime Minister openly asking to rewrite the rules of the table rather than just get a seat at it.",
+    keyTakeaways: [
+      'Unanimous New Delhi Declaration 2026: 11-member expanded bloc successfully adopted a consensus declaration despite sharp internal geopolitical divisions over West Asia and Ukraine.',
+      'Modi’s BRICS Reform Roadmap: Proposed 10 formal global governance proposals anchored on Representation, Responsiveness, and Rule-making.',
+      'UNSC Restructuring: Permanent members China and Russia formally reiterated backing for India and Brazil’s permanent seat aspirations, declaring UN Security Council reform can no longer be delayed.',
+      'From Pyramid of Privilege to Platform of Partnership: India steered the bloc toward elevating the Global South from the back row to the front row of international decision-making.',
+      'Economic & Tech Core: Concrete progress on BRICS Economic Partnership 2030, local currency trade settlements, ethical AI collaboration, and pragmatic energy transitions.'
+    ],
+    content: `## The Setting
+
+India just wrapped its fourth BRICS Chairship — 2012, 2016, 2021, and now 2026 — hosting the 18th BRICS Summit at Bharat Mandapam under the theme "Building for Resilience, Innovation, Cooperation and Sustainability." This wasn't a small gathering. Across the year, India ran over 350 BRICS-related meetings and high-level engagements in more than 25 cities before the leaders even arrived in Delhi.
+
+BRICS itself isn't the group most people still picture. What started as Brazil, Russia, India, China, and South Africa is now an 11-member bloc: Egypt, Ethiopia, Iran, Indonesia, and the UAE have all joined in the last two years. That expansion matters more than it sounds — it means BRICS today spans a genuinely cross-continental mix of Latin America, Africa, the Middle East, and Asia, all sitting at the same table as China and Russia.
+
+The summit closed with the unanimous adoption of the **New Delhi Declaration 2026** — no small feat, given it happened amid sharp internal divisions over West Asia and Ukraine.
+
+## What Modi Actually Asked For
+
+The headline from India's presidency wasn't a photo-op line — it was a structural pitch. PM Modi proposed that BRICS members jointly draft ten proposals for global governance reform, aiming to develop them into a formal **BRICS Reform Roadmap** by the next summit, built around three pillars: **Representation, Responsiveness, and Rule-making.**
+
+On representation, Modi's position was direct: UN Security Council reform "can no longer be delayed," and voting power and leadership positions in global financial institutions need to reflect current economic realities, not decades-old ones. His framing was blunt — "countries that drive global economic growth should also have an appropriate role in shaping global economic governance."
+
+Notably, China and Russia — both permanent UNSC members — reiterated support for India's and Brazil's aspirations to a greater UN role, including on the Security Council itself. That's a meaningful signal inside a bloc that doesn't always agree on much.
+
+The line that probably captures India's pitch best: Modi described the current global order as a "pyramid of privilege" that needs to become a "platform of partnership" — with the Global South moving from the back row of decision-making to the front row, even though it's already in the front row when it comes to absorbing global crises.
+
+## The Global South and Asia Angle
+
+This summit fell, deliberately, on the UN Day for South-South Cooperation — and India leaned into that. Modi framed India as ready to "take the lead" on shaping how the Global South organizes its collective voice, positioning BRICS as the primary vehicle for that ambition rather than any single country's project.
+
+For Asia specifically, India's role is a balancing act worth noting: it sits in the same bloc as China, its most complicated regional relationship, while also anchoring the bloc's outreach to Africa (via Egypt, Ethiopia, South Africa), the Middle East (UAE, Saudi Arabia, Iran), and Southeast Asia (Indonesia). Analysts covering the summit have pointed out that BRICS's expansion gives Africa in particular a wider field of economic relationships with some of the world's largest emerging markets — and India's chairship this year was largely about proving the bloc could hold that diversity together without fracturing.
+
+## The Growth and Cooperation Substance
+
+Beyond the diplomacy, the declaration had real economic and technological content:
+
+- **BRICS Economic Partnership 2030** — leaders welcomed continued progress on this framework, alongside practical work on cross-border payment interoperability and trade settlement in local currencies, reducing dependence on any single reserve currency for intra-BRICS trade.
+- **AI and digital transformation** were explicitly named as future growth drivers, with leaders backing cooperation on safe, secure, and inclusive AI, alongside expanded connectivity and cybersecurity collaboration — a natural continuation of the AI-focused summit India hosted earlier in the year.
+- **Climate pragmatism over climate purity** — the declaration acknowledged that fossil fuels will continue playing a transitional role for emerging and developing economies even as members scale up renewable and green-tech collaboration, a notably realist stance compared to some Western-bloc climate language.
+- **Security cooperation** — leaders condemned terrorism "in all its forms," explicitly referencing the April 2025 Jammu and Kashmir attack, and called for accountability mechanisms and support for a UN-level comprehensive terrorism convention.
+- On the bilateral side, India and Brazil signed a fresh telecom and ICT cooperation memorandum on the summit's sidelines — a small but concrete example of BRICS relationships translating into actual agreements, not just joint statements.
+
+## Why This Matters Beyond the Headlines
+
+Summits like this get covered as photo-ops and traffic advisories (and Delhi did shut down a lot of roads for it). But the substance underneath is a genuine repositioning question: can a deliberately heterogeneous bloc — authoritarian and democratic, oil economies and manufacturing economies, old rivals and new partners — actually function as a coherent voice for the Global South, or does it stay a talking shop?
+
+India's bet, visible in everything from the Reform Roadmap proposal to the AI cooperation language, is that it can — and that Bharat's job, as the bloc's most experienced chair, is to keep proving it works in practice rather than just in declarations. Whether the "platform of partnership" framing becomes real institutional change or stays aspirational language is the thing worth watching between now and the next summit.
+
+---
+
+*Sources: PIB, Business Standard, Organiser, Asianet Newsable, Sarkaritel, ICTFrame, Countercurrents — reporting on the 18th BRICS Summit, September 12–13, 2026.*`,
+    category: 'World',
+    tags: ['BRICS 2026', 'India', 'Global South', 'Geopolitics', 'PM Modi', 'Foreign Policy', 'UNSC', 'Economy', 'AI Governance'],
+    authorId: 'author-narayan-shukla',
+    featuredImage: '/brics-2026-summit.svg',
+    imageCaption: '18th BRICS Summit 2026 at Bharat Mandapam, New Delhi: India anchors the expanded 11-member bloc and champions Global South governance reform.',
+    status: 'published',
+    articleType: 'opinion',
+    sourceType: 'reference',
+    sourceName: 'Search Engine & AI Intelligence Reference (Curated by Narayan Shukla)',
+    sourceUrl: 'https://www.pib.gov.in',
+    isBreaking: true,
+    publishedAt: '2026-09-14T08:30:00.000Z',
+    updatedAt: '2026-09-14T11:40:00.000Z',
+    readTimeMinutes: 5,
+    views: 2450,
+    seoTitle: "18th BRICS Summit 2026: India's Global Role & New Delhi Declaration Analysis",
+    seoDescription: "An in-depth analysis by Narayan Shukla on what the 18th BRICS Summit at Bharat Mandapam signals about India's leadership, Global South diplomacy, and UN governance reform.",
+    citations: [
+      {
+        label: 'Press Information Bureau (PIB) - Official 18th BRICS Summit Proceedings',
+        url: 'https://www.pib.gov.in',
+        organization: 'PIB Government of India'
+      },
+      {
+        label: 'Business Standard - New Delhi Declaration 2026 & Economic Partnership',
+        url: 'https://www.business-standard.com',
+        organization: 'Business Standard'
+      },
+      {
+        label: 'Organiser - India Chairship & Global South Plenary Insights',
+        url: 'https://organiser.org',
+        organization: 'Organiser'
+      },
+      {
+        label: 'Asianet Newsable - BRICS 2026 Leader Declaration & UNSC Reform',
+        url: 'https://newsable.asianetnews.com',
+        organization: 'Asianet Newsable'
+      },
+      {
+        label: 'Sarkaritel & ICTFrame - Bilateral ICT and Digital Infrastructure Agreements',
+        url: 'https://sarkaritel.com',
+        organization: 'Sarkaritel'
+      }
+    ],
+    faq: [
+      {
+        question: 'Where was the 18th BRICS Summit held and what was its theme?',
+        answer: 'The 18th BRICS Summit was held at Bharat Mandapam in New Delhi on September 12–13, 2026, under the theme "Building for Resilience, Innovation, Cooperation and Sustainability."'
+      },
+      {
+        question: 'Who are the members of the expanded BRICS bloc in 2026?',
+        answer: 'The 11-member bloc comprises founding nations Brazil, Russia, India, China, and South Africa, alongside newer members Egypt, Ethiopia, Iran, Indonesia, and the United Arab Emirates (UAE).'
+      },
+      {
+        question: 'What are the three pillars of Prime Minister Modi’s proposed BRICS Reform Roadmap?',
+        answer: 'PM Modi proposed ten joint reform measures anchored on Representation, Responsiveness, and Rule-making to modernize global financial institutions and restructure the UN Security Council.'
+      }
+    ]
+  },
   {
     id: 'art-space-01',
     slug: 'india-space-ambitions-reach-new-heights',
