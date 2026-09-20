@@ -28,7 +28,23 @@ function initializeLocalStorage(): { articles: Article[]; authors: Author[] } {
     if (cachedArticles) {
       const parsed = JSON.parse(cachedArticles);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        articles = parsed;
+        // Heal any 2025 dates in cached articles to 2026
+        articles = parsed.map((a: Article) => {
+          let p = a.publishedAt;
+          let u = a.updatedAt;
+          if (p && p.startsWith('2025-')) {
+            p = p.replace('2025-', '2026-');
+          }
+          if (u && u.startsWith('2025-')) {
+            u = u.replace('2025-', '2026-');
+          }
+          if (a.headline && a.headline.toLowerCase().includes('japanese fighters')) {
+            p = '2026-09-20T09:30:00.000Z';
+            u = '2026-09-20T09:30:00.000Z';
+          }
+          return { ...a, publishedAt: p, updatedAt: u };
+        });
+
         let merged = false;
         for (const seedArt of SEED_ARTICLES) {
           if (!articles.some((a) => a.id === seedArt.id || a.slug === seedArt.slug)) {
@@ -36,9 +52,7 @@ function initializeLocalStorage(): { articles: Article[]; authors: Author[] } {
             merged = true;
           }
         }
-        if (merged) {
-          localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(articles));
-        }
+        localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(articles));
       } else {
         localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(SEED_ARTICLES));
       }
@@ -132,6 +146,39 @@ export async function getArticles(filter?: {
       const snap = await getDocs(q);
       if (!snap.empty) {
         list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Article, 'id'>) }));
+
+        // Heal any 2025 dates in Firestore to 2026
+        for (const art of list) {
+          let needsUpdate = false;
+          let newPub = art.publishedAt;
+          let newUpd = art.updatedAt;
+          if (art.publishedAt && art.publishedAt.startsWith('2025-')) {
+            newPub = art.publishedAt.replace('2025-', '2026-');
+            needsUpdate = true;
+          }
+          if (art.updatedAt && art.updatedAt.startsWith('2025-')) {
+            newUpd = art.updatedAt.replace('2025-', '2026-');
+            needsUpdate = true;
+          }
+          if (art.headline && art.headline.toLowerCase().includes('japanese fighters') && (!art.publishedAt || art.publishedAt.includes('2025'))) {
+            newPub = '2026-09-20T09:30:00.000Z';
+            newUpd = '2026-09-20T09:30:00.000Z';
+            needsUpdate = true;
+          }
+          if (needsUpdate) {
+            art.publishedAt = newPub;
+            art.updatedAt = newUpd;
+            try {
+              updateDoc(doc(db, 'articles', art.id), {
+                publishedAt: newPub,
+                updatedAt: newUpd,
+              }).catch(() => {});
+            } catch {
+              // silent
+            }
+          }
+        }
+
         // Ensure newest seed articles (e.g. newly published articles) exist in Firestore
         for (const seedArt of SEED_ARTICLES) {
           if (!list.some((a) => a.id === seedArt.id || a.slug === seedArt.slug)) {
@@ -245,10 +292,12 @@ export async function updateArticle(
   const idx = current.findIndex((a) => a.id === id);
   if (idx === -1) return null;
 
+  const now = new Date().toISOString();
   const updatedArticle: Article = {
     ...current[idx],
     ...updates,
-    updatedAt: new Date().toISOString(),
+    publishedAt: updates.publishedAt || current[idx].publishedAt || now,
+    updatedAt: updates.updatedAt || now,
   };
 
   current[idx] = updatedArticle;
@@ -261,7 +310,8 @@ export async function updateArticle(
       const docRef = doc(db, 'articles', id);
       await updateDoc(docRef, {
         ...updates,
-        updatedAt: new Date().toISOString(),
+        publishedAt: updatedArticle.publishedAt,
+        updatedAt: updatedArticle.updatedAt,
       });
     } catch (e) {
       console.error('Failed updating Firestore doc:', e);

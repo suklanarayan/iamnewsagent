@@ -27,6 +27,7 @@ import {
   Rss,
   Radio,
   Clock,
+  Calendar,
   Megaphone,
 } from 'lucide-react';
 import type {
@@ -140,6 +141,55 @@ export const CmsView: React.FC<CmsViewProps> = ({
   const [readTimeMinutes, setReadTimeMinutes] = useState(4);
   const [content, setContent] = useState('');
 
+  // Publication Date & Timestamp Management
+  const [publishedAt, setPublishedAt] = useState<string>(() => new Date().toISOString());
+  const [autoBumpDateOnSave, setAutoBumpDateOnSave] = useState<boolean>(false);
+
+  // Format ISO string to datetime-local input value (YYYY-MM-DDTHH:mm)
+  const toDateTimeLocal = (isoString?: string) => {
+    if (!isoString) return '';
+    try {
+      const date = new Date(isoString);
+      if (isNaN(date.getTime())) return '';
+      const offset = date.getTimezoneOffset() * 60000;
+      const local = new Date(date.getTime() - offset);
+      return local.toISOString().slice(0, 16);
+    } catch {
+      return '';
+    }
+  };
+
+  // Convert datetime-local value to ISO string
+  const handleDateTimeLocalChange = (val: string) => {
+    if (!val) return;
+    try {
+      const date = new Date(val);
+      if (!isNaN(date.getTime())) {
+        setPublishedAt(date.toISOString());
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Quick 1-click update to current timestamp (2026)
+  const handleSetDateToNow = () => {
+    const now = new Date().toISOString();
+    setPublishedAt(now);
+    showToast('Publication timestamp set to current date and time (2026)!');
+  };
+
+  // Quick 1-click bump directly from Manage Articles table
+  const handleQuickBumpDate = async (article: Article) => {
+    const now = new Date().toISOString();
+    await updateArticle(article.id, {
+      publishedAt: now,
+      updatedAt: now,
+    });
+    await onRefreshArticles();
+    showToast(`Publication date for "${article.headline.slice(0, 28)}..." updated to Today (2026)!`);
+  };
+
   // Dedicated 'Key Takeaway' Summary inputs (bulleted list)
   const [keyTakeaways, setKeyTakeaways] = useState<string[]>([
     'Core intelligence finding with quantitative metric or strategic impact.',
@@ -245,6 +295,8 @@ export const CmsView: React.FC<CmsViewProps> = ({
       'Next-horizon impact and institutional oversight timetable.',
     ]);
     setContent(`Autonomous agents and verified machine intelligences are redefining strategic operations across global borders.\n\n## Structural Operational Overview\n\n1. Real-time verification without legacy clearance lag.\n2. Tamper-evident cryptographic state transitions.\n3. Continuous regulatory oversight.\n\n> "Speed of intelligence without mathematical certainty is merely accelerated error."\n\nFurther policy implementations are slated for review by international standards bodies.`);
+    setPublishedAt(new Date().toISOString());
+    setAutoBumpDateOnSave(false);
     setActiveTab('editor');
   };
 
@@ -268,6 +320,8 @@ export const CmsView: React.FC<CmsViewProps> = ({
     setReadTimeMinutes(data.readTimeMinutes || 4);
     setKeyTakeaways(data.keyTakeaways && data.keyTakeaways.length > 0 ? data.keyTakeaways : ['']);
     setContent(data.content);
+    setPublishedAt(new Date().toISOString());
+    setAutoBumpDateOnSave(false);
     setActiveTab('editor');
     showToast('AI draft loaded into editor! Review, tweak, and click Publish when ready.');
   };
@@ -369,6 +423,12 @@ export const CmsView: React.FC<CmsViewProps> = ({
     setReadTimeMinutes(art.readTimeMinutes || 3);
     setKeyTakeaways(art.keyTakeaways.length > 0 ? art.keyTakeaways : ['']);
     setContent(art.content);
+    let artDate = art.publishedAt || new Date().toISOString();
+    if (artDate.startsWith('2025-')) {
+      artDate = artDate.replace('2025-', '2026-');
+    }
+    setPublishedAt(artDate);
+    setAutoBumpDateOnSave(false);
     setActiveTab('editor');
   };
 
@@ -396,6 +456,7 @@ export const CmsView: React.FC<CmsViewProps> = ({
 
     try {
       const now = new Date().toISOString();
+      const finalPublishedAt = autoBumpDateOnSave ? now : (publishedAt || now);
 
       if (editingArticleId) {
         await updateArticle(editingArticleId, {
@@ -419,9 +480,10 @@ export const CmsView: React.FC<CmsViewProps> = ({
           readTimeMinutes: Number(readTimeMinutes) || 3,
           keyTakeaways: validTakeaways,
           content,
+          publishedAt: finalPublishedAt,
           updatedAt: now,
         });
-        showToast('Article updated and synced to Firestore successfully.');
+        showToast('Article updated with publication date and synced successfully.');
       } else {
         await createArticle({
           headline,
@@ -444,7 +506,7 @@ export const CmsView: React.FC<CmsViewProps> = ({
           readTimeMinutes: Number(readTimeMinutes) || 3,
           keyTakeaways: validTakeaways,
           content,
-          publishedAt: now,
+          publishedAt: finalPublishedAt,
           updatedAt: now,
         });
         showToast('New article published and saved permanently to Firestore.');
@@ -984,8 +1046,27 @@ export const CmsView: React.FC<CmsViewProps> = ({
                         <td className="p-3.5 whitespace-nowrap text-slate-400">
                           {art.views.toLocaleString()}
                         </td>
-                        <td className="p-3.5 whitespace-nowrap text-slate-400">
-                          {new Date(art.publishedAt).toLocaleDateString()}
+                        <td className="p-3.5 whitespace-nowrap text-slate-400 text-xs">
+                          <div className="flex items-center gap-1.5 font-mono">
+                            <span>{new Date(art.publishedAt).toLocaleDateString()}</span>
+                            {new Date(art.publishedAt).getFullYear() < 2026 ? (
+                              <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
+                                2025
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]">
+                                2026
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickBumpDate(art)}
+                            className="text-[10px] text-amber-400 hover:text-amber-300 underline font-intel block mt-1 transition-colors text-left"
+                            title="Quickly set this article's date to Today (2026)"
+                          >
+                            ⚡ Set to Today (2026)
+                          </button>
                         </td>
                         <td className="p-3.5 text-right whitespace-nowrap space-x-2">
                           <button
@@ -1227,6 +1308,85 @@ export const CmsView: React.FC<CmsViewProps> = ({
                 retractionReason={retractionReason}
                 onChangeRetractionReason={setRetractionReason}
               />
+
+              {/* Publication Date & Timestamp Settings Card */}
+              <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3.5">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-amber-400" />
+                    <h4 className="text-xs font-intel font-bold uppercase tracking-wider text-slate-200">
+                      Publication Date & Timestamp
+                    </h4>
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                    {new Date(publishedAt).getFullYear()} Edition
+                  </span>
+                </div>
+
+                {/* Current Display */}
+                <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 space-y-1.5">
+                  <div className="text-[11px] text-slate-400 font-intel flex items-center justify-between">
+                    <span>Active Published Date:</span>
+                    {new Date(publishedAt).getFullYear() < 2026 && (
+                      <span className="text-amber-400 font-bold text-[10px] flex items-center gap-1 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                        <AlertCircle className="w-3 h-3" />
+                        Prior Year (2025)
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs font-mono font-bold text-amber-300">
+                    {new Date(publishedAt).toLocaleString('en-US', {
+                      weekday: 'short',
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true,
+                    })}
+                  </div>
+                </div>
+
+                {/* 1-Click Fast Timestamp Bump Button */}
+                <button
+                  type="button"
+                  onClick={handleSetDateToNow}
+                  className="w-full py-2 px-3 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 hover:text-amber-200 border border-amber-500/40 text-xs font-intel font-bold flex items-center justify-center gap-2 transition-colors shadow-sm"
+                >
+                  <Clock className="w-3.5 h-3.5 text-amber-400" />
+                  <span>⚡ Set Date to Current Time (Now - 2026)</span>
+                </button>
+
+                {/* Manual Date & Time Picker */}
+                <div>
+                  <label htmlFor="editor-published-at-picker" className="block text-xs font-intel text-slate-300 mb-1">
+                    Custom Date & Time Picker:
+                  </label>
+                  <input
+                    id="editor-published-at-picker"
+                    type="datetime-local"
+                    value={toDateTimeLocal(publishedAt)}
+                    onChange={(e) => handleDateTimeLocalChange(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs font-mono focus:outline-none focus:border-amber-400"
+                  />
+                  <p className="text-[10px] text-slate-400 font-intel mt-1">
+                    Select any custom day, month, year (e.g. 2026), or specific hour.
+                  </p>
+                </div>
+
+                {/* Auto-bump toggle when saving */}
+                <label className="flex items-start gap-2 pt-1 text-xs text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoBumpDateOnSave}
+                    onChange={(e) => setAutoBumpDateOnSave(e.target.checked)}
+                    className="mt-0.5 w-3.5 h-3.5 rounded text-amber-500 bg-slate-950 border-slate-700 focus:ring-0"
+                  />
+                  <span className="text-[11px] leading-snug">
+                    Automatically bump publication date to <strong>Today (2026)</strong> when saving updates
+                  </span>
+                </label>
+              </div>
 
               {/* Publishing Controls Card */}
               <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-4">

@@ -101,6 +101,18 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
     year: 'numeric',
   });
 
+  const formattedUpdatedDate =
+    article.updatedAt &&
+    new Date(article.updatedAt).getTime() > new Date(article.publishedAt).getTime() + 60000
+      ? new Date(article.updatedAt).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : null;
+
   return (
     <div className="bg-white text-slate-900 min-h-screen">
       {/* Breadcrumb Bar */}
@@ -273,12 +285,22 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
                     </div>
                     <div className="text-xs text-slate-500">
                       {author.role} &bull; {formattedDate}
+                      {formattedUpdatedDate && (
+                        <span className="text-slate-400 font-intel ml-1.5">
+                          (Updated: {formattedUpdatedDate})
+                        </span>
+                      )}
                     </div>
                   </div>
                 </button>
               ) : (
                 <div className="text-xs text-slate-500">
                   Published by <span className="font-bold text-slate-900">iamnewsagent Bureau</span> &bull; {formattedDate}
+                  {formattedUpdatedDate && (
+                    <span className="text-slate-400 font-intel ml-1.5">
+                      (Updated: {formattedUpdatedDate})
+                    </span>
+                  )}
                 </div>
               )}
 
