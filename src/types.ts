@@ -12,6 +12,15 @@ export type Category =
   | 'Explainers'
   | 'Opinion';
 
+export interface CategoryItem {
+  id: string;
+  name: string;
+  subtext: string;
+  image: string;
+  order?: number;
+  isEnabled?: boolean;
+}
+
 export interface Author {
   id: string;
   name: string;

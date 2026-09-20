@@ -49,5 +49,10 @@ service cloud.firestore {
       allow update: if isValidId(authorId) && isValidAuthor(request.resource.data);
       allow delete: if isValidId(authorId);
     }
+
+    match /site_settings/{settingId} {
+      allow read: if isValidId(settingId);
+      allow write: if isValidId(settingId);
+    }
   }
 }

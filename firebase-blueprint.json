@@ -50,6 +50,9 @@
     "/authors/{authorId}": {
       "schema": "Author",
       "description": "Collection of journalists and staff contributors"
+    },
+    "/site_settings/{settingId}": {
+      "description": "App configuration settings such as explore categories and ad briefings"
     }
   }
 }

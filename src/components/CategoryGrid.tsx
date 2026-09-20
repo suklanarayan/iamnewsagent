@@ -1,73 +1,49 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
-
-interface CategoryItem {
-  id: string;
-  name: string;
-  subtext: string;
-  image: string;
-}
+import type { CategoryItem } from '../types';
+import { getCategories, loadCategoriesFromFirestore } from '../utils/categoryManager';
 
 interface CategoryGridProps {
   onSelectCategory: (category: string) => void;
 }
 
-const CATEGORIES_DATA: CategoryItem[] = [
-  {
-    id: 'India',
-    name: 'India',
-    subtext: 'Politics, States, Governance',
-    image: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=400&q=80',
-  },
-  {
-    id: 'World',
-    name: 'World',
-    subtext: 'Global News, Geopolitics',
-    image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=400&q=80',
-  },
-  {
-    id: 'Business',
-    name: 'Business',
-    subtext: 'Markets, Economy, Industry',
-    image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80',
-  },
-  {
-    id: 'Technology',
-    name: 'Technology',
-    subtext: 'AI, Gadgets, Innovation',
-    image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=400&q=80',
-  },
-  {
-    id: 'Sports',
-    name: 'Sports',
-    subtext: 'Cricket, Football, More',
-    image: 'https://images.unsplash.com/photo-1531415074868-036b1c57e329?auto=format&fit=crop&w=400&q=80',
-  },
-  {
-    id: 'Health',
-    name: 'Health',
-    subtext: 'Wellness, Research',
-    image: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=400&q=80',
-  },
-  {
-    id: 'Lifestyle',
-    name: 'Lifestyle',
-    subtext: 'Travel, Food, Culture',
-    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80',
-  },
-  {
-    id: 'Entertainment',
-    name: 'Entertainment',
-    subtext: 'Movies, OTT, Celebrities',
-    image: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=400&q=80',
-  },
-];
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=400&q=80';
 
 export const CategoryGrid: React.FC<CategoryGridProps> = ({
   onSelectCategory,
 }) => {
+  const [categories, setCategories] = useState<CategoryItem[]>(() => getCategories());
+
+  useEffect(() => {
+    // Initial sync from local storage and firestore
+    setCategories(getCategories());
+    loadCategoriesFromFirestore().then((remote) => {
+      if (remote && remote.length > 0) {
+        setCategories(remote);
+      }
+    });
+
+    const handleUpdate = () => {
+      setCategories(getCategories());
+    };
+
+    window.addEventListener('storage', handleUpdate);
+    window.addEventListener('categories-updated', handleUpdate);
+
+    return () => {
+      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('categories-updated', handleUpdate);
+    };
+  }, []);
+
+  const visibleCategories = categories
+    .filter((c) => c.isEnabled !== false)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+  if (visibleCategories.length === 0) return null;
+
   return (
-    <section className="space-y-4">
+    <section className="space-y-4" id="home-explore-by-category">
       {/* Section Header */}
       <div className="flex items-center justify-between pb-2 border-b border-slate-200">
         <h3 className="text-xl sm:text-2xl font-bold font-serif text-slate-950">
@@ -83,22 +59,29 @@ export const CategoryGrid: React.FC<CategoryGridProps> = ({
         </button>
       </div>
 
-      {/* Grid of 8 Category Cards */}
+      {/* Grid of Category Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
-        {CATEGORIES_DATA.map((cat) => (
+        {visibleCategories.map((cat) => (
           <button
             key={cat.id}
             type="button"
-            onClick={() => onSelectCategory(cat.id)}
+            onClick={() => onSelectCategory(cat.name || cat.id)}
             className="flex flex-col text-left group cursor-pointer bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-all"
           >
             {/* Thumbnail */}
-            <div className="h-20 sm:h-22 w-full overflow-hidden bg-slate-100">
+            <div className="h-20 sm:h-22 w-full overflow-hidden bg-slate-100 relative">
               <img
-                src={cat.image}
+                src={cat.image || FALLBACK_IMAGE}
                 alt={cat.name}
+                referrerPolicy="no-referrer"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 loading="lazy"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (target.src !== FALLBACK_IMAGE) {
+                    target.src = FALLBACK_IMAGE;
+                  }
+                }}
               />
             </div>
 

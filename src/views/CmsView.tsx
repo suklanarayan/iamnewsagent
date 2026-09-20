@@ -56,6 +56,7 @@ import {
 import { AiWireTab } from '../components/AiWireTab';
 import { LiveStoriesManagerTab } from '../components/LiveStoriesManagerTab';
 import { SponsorAdManagerTab } from '../components/SponsorAdManagerTab';
+import { CategoryManagerTab } from '../components/CategoryManagerTab';
 import { ImageUploader } from '../components/ImageUploader';
 import { SourceOriginPicker } from '../components/SourceOriginPicker';
 import { PublicationStatusPicker } from '../components/PublicationStatusPicker';
@@ -115,7 +116,7 @@ export const CmsView: React.FC<CmsViewProps> = ({
   const [authError, setAuthError] = useState('');
 
   // Active CMS Tab
-  const [activeTab, setActiveTab] = useState<'manage' | 'editor' | 'wire' | 'stories' | 'authors' | 'deploy' | 'sponsor'>('manage');
+  const [activeTab, setActiveTab] = useState<'manage' | 'editor' | 'wire' | 'stories' | 'authors' | 'categories' | 'sponsor' | 'deploy'>('manage');
 
   // Article Editor State
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
@@ -818,16 +819,17 @@ export const CmsView: React.FC<CmsViewProps> = ({
           Authors Directory ({authors.length})
         </button>
         <button
-          id="cms-tab-deploy"
+          id="cms-tab-categories"
           type="button"
-          onClick={() => setActiveTab('deploy')}
-          className={`pb-3 px-3 font-semibold transition-colors whitespace-nowrap relative ${
-            activeTab === 'deploy'
+          onClick={() => setActiveTab('categories')}
+          className={`pb-3 px-3 font-semibold transition-colors whitespace-nowrap relative flex items-center gap-1.5 ${
+            activeTab === 'categories'
               ? 'text-amber-400 border-b-2 border-amber-500'
               : 'text-slate-400 hover:text-white'
           }`}
         >
-          Vercel & Firebase Setup
+          <Layers className="w-3.5 h-3.5 text-amber-400" />
+          <span>Explore Categories</span>
         </button>
         <button
           id="cms-tab-sponsor"
@@ -840,7 +842,19 @@ export const CmsView: React.FC<CmsViewProps> = ({
           }`}
         >
           <Megaphone className="w-3.5 h-3.5 text-amber-400" />
-          <span>Sponsor Ribbon & Ads</span>
+          <span>Sponsors & Ads</span>
+        </button>
+        <button
+          id="cms-tab-deploy"
+          type="button"
+          onClick={() => setActiveTab('deploy')}
+          className={`pb-3 px-3 font-semibold transition-colors whitespace-nowrap relative ${
+            activeTab === 'deploy'
+              ? 'text-amber-400 border-b-2 border-amber-500'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Vercel & Firebase Setup
         </button>
       </div>
 
@@ -1795,8 +1809,11 @@ git push -u origin main`}
         </div>
       )}
 
-      {/* TAB 6: SPONSOR RIBBON & AD SETTINGS */}
-      {activeTab === 'sponsor' && <SponsorAdManagerTab />}
+      {/* TAB 6: EXPLORE BY CATEGORY MANAGER */}
+      {activeTab === 'categories' && <CategoryManagerTab onShowToast={showToast} />}
+
+      {/* TAB 7: SPONSOR BRIEFINGS & AD SETTINGS */}
+      {activeTab === 'sponsor' && <SponsorAdManagerTab onShowToast={showToast} />}
 
       {/* QUICK ADD AUTHOR MODAL */}
       {showAuthorModal && (
