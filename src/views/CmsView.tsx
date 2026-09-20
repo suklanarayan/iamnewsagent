@@ -29,6 +29,7 @@ import {
   Clock,
   Calendar,
   Megaphone,
+  TrendingUp,
 } from 'lucide-react';
 import type {
   Article,
@@ -57,6 +58,7 @@ import { AiWireTab } from '../components/AiWireTab';
 import { LiveStoriesManagerTab } from '../components/LiveStoriesManagerTab';
 import { SponsorAdManagerTab } from '../components/SponsorAdManagerTab';
 import { CategoryManagerTab } from '../components/CategoryManagerTab';
+import { TrendingManagerTab } from '../components/TrendingManagerTab';
 import { ImageUploader } from '../components/ImageUploader';
 import { SourceOriginPicker } from '../components/SourceOriginPicker';
 import { PublicationStatusPicker } from '../components/PublicationStatusPicker';
@@ -116,7 +118,7 @@ export const CmsView: React.FC<CmsViewProps> = ({
   const [authError, setAuthError] = useState('');
 
   // Active CMS Tab
-  const [activeTab, setActiveTab] = useState<'manage' | 'editor' | 'wire' | 'stories' | 'authors' | 'categories' | 'sponsor' | 'deploy'>('manage');
+  const [activeTab, setActiveTab] = useState<'manage' | 'editor' | 'wire' | 'stories' | 'authors' | 'categories' | 'trending' | 'sponsor' | 'deploy'>('manage');
 
   // Article Editor State
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
@@ -830,6 +832,19 @@ export const CmsView: React.FC<CmsViewProps> = ({
         >
           <Layers className="w-3.5 h-3.5 text-amber-400" />
           <span>Explore Categories</span>
+        </button>
+        <button
+          id="cms-tab-trending"
+          type="button"
+          onClick={() => setActiveTab('trending')}
+          className={`pb-3 px-3 font-semibold transition-colors whitespace-nowrap relative flex items-center gap-1.5 ${
+            activeTab === 'trending'
+              ? 'text-amber-400 border-b-2 border-amber-500'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
+          <span>Trending Now</span>
         </button>
         <button
           id="cms-tab-sponsor"
@@ -1812,7 +1827,12 @@ git push -u origin main`}
       {/* TAB 6: EXPLORE BY CATEGORY MANAGER */}
       {activeTab === 'categories' && <CategoryManagerTab onShowToast={showToast} />}
 
-      {/* TAB 7: SPONSOR BRIEFINGS & AD SETTINGS */}
+      {/* TAB 7: TRENDING NOW DESK MANAGER */}
+      {activeTab === 'trending' && (
+        <TrendingManagerTab articles={articles} onShowToast={showToast} />
+      )}
+
+      {/* TAB 8: SPONSOR BRIEFINGS & AD SETTINGS */}
       {activeTab === 'sponsor' && <SponsorAdManagerTab onShowToast={showToast} />}
 
       {/* QUICK ADD AUTHOR MODAL */}

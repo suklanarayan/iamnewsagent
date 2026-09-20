@@ -4,6 +4,8 @@ import type { TrendingItem, Article } from '../types';
 
 interface TrendingColumnProps {
   trending: TrendingItem[];
+  sectionTitle?: string;
+  isTrendingEnabled?: boolean;
   insightArticle?: Article;
   onSelectTrending: (item: TrendingItem) => void;
   onSelectArticle: (article: Article) => void;
@@ -11,6 +13,8 @@ interface TrendingColumnProps {
 
 export const TrendingColumn: React.FC<TrendingColumnProps> = ({
   trending,
+  sectionTitle = 'Trending Now',
+  isTrendingEnabled = true,
   insightArticle,
   onSelectTrending,
   onSelectArticle,
@@ -18,32 +22,34 @@ export const TrendingColumn: React.FC<TrendingColumnProps> = ({
   return (
     <div className="space-y-6">
       {/* 1. TRENDING NOW SECTION */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-xs">
-        <h3 className="text-lg font-bold font-serif text-slate-950 pb-3 border-b border-slate-100 flex items-center justify-between">
-          <span>Trending Now</span>
-        </h3>
+      {isTrendingEnabled && trending.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-xs">
+          <h3 className="text-lg font-bold font-serif text-slate-950 pb-3 border-b border-slate-100 flex items-center justify-between">
+            <span>{sectionTitle}</span>
+          </h3>
 
-        <div className="divide-y divide-slate-100">
-          {trending.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onSelectTrending(item)}
-              className="w-full py-3 flex items-start gap-3 text-left group hover:bg-slate-50 -mx-2 px-2 rounded-lg transition-colors cursor-pointer"
-            >
-              <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-center flex-shrink-0 group-hover:bg-red-50 group-hover:text-red-700 transition-colors">
-                {item.rank}
-              </span>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs sm:text-sm font-semibold text-slate-900 group-hover:text-red-700 transition-colors leading-snug line-clamp-2">
-                  {item.title}
+          <div className="divide-y divide-slate-100">
+            {trending.map((item, idx) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onSelectTrending(item)}
+                className="w-full py-3 flex items-start gap-3 text-left group hover:bg-slate-50 -mx-2 px-2 rounded-lg transition-colors cursor-pointer"
+              >
+                <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-center flex-shrink-0 group-hover:bg-red-50 group-hover:text-red-700 transition-colors">
+                  {item.rank || idx + 1}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs sm:text-sm font-semibold text-slate-900 group-hover:text-red-700 transition-colors leading-snug line-clamp-2">
+                    {item.title}
+                  </div>
                 </div>
-              </div>
-              <ArrowUpRight className="w-4 h-4 text-red-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform flex-shrink-0" />
-            </button>
-          ))}
+                <ArrowUpRight className="w-4 h-4 text-red-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform flex-shrink-0" />
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 2. TODAY'S INSIGHT CARD */}
       {insightArticle && (

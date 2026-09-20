@@ -118,12 +118,18 @@ export interface LiveStory {
 }
 
 export interface TrendingItem {
-  id: number;
+  id: number | string;
   rank: number;
   title: string;
   category: string;
   searchVolume?: string;
   slug?: string;
+}
+
+export interface TrendingSettings {
+  sectionTitle: string;
+  isEnabled: boolean;
+  items: TrendingItem[];
 }
 
 export interface OpinionPiece {

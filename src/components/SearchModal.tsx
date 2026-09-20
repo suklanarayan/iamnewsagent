@@ -25,6 +25,7 @@ import {
   clearRecentSearches,
   CURATED_TRENDING_TERMS,
 } from '../utils/searchIntelligence';
+import { getTrendingSettings } from '../utils/trendingManager';
 import {
   queryWikipediaKnowledge,
   type WikipediaSearchResult,
@@ -365,19 +366,26 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                   Trending Search Predictions & Desks
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  {CURATED_TRENDING_TERMS.slice(0, 8).map((term) => (
-                    <button
-                      key={term}
-                      type="button"
-                      onClick={() => handleSelectPrediction(term)}
-                      className="p-2.5 rounded-xl border border-slate-100 hover:border-red-200 bg-slate-50/70 hover:bg-red-50/40 text-left transition-all flex items-center justify-between group cursor-pointer"
-                    >
-                      <span className="font-semibold text-slate-800 group-hover:text-red-700">
-                        {term}
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 group-hover:text-red-700 transition-transform" />
-                    </button>
-                  ))}
+                  {Array.from(
+                    new Set([
+                      ...getTrendingSettings().items.map((i) => i.title),
+                      ...CURATED_TRENDING_TERMS,
+                    ])
+                  )
+                    .slice(0, 8)
+                    .map((term) => (
+                      <button
+                        key={term}
+                        type="button"
+                        onClick={() => handleSelectPrediction(term)}
+                        className="p-2.5 rounded-xl border border-slate-100 hover:border-red-200 bg-slate-50/70 hover:bg-red-50/40 text-left transition-all flex items-center justify-between group cursor-pointer"
+                      >
+                        <span className="font-semibold text-slate-800 group-hover:text-red-700 line-clamp-1">
+                          {term}
+                        </span>
+                        <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 group-hover:text-red-700 transition-transform shrink-0 ml-1" />
+                      </button>
+                    ))}
                 </div>
               </div>
             </div>

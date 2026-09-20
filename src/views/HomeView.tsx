@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 import type { Article, Author, LiveStory, TrendingItem, OpinionPiece } from '../types';
 import { HeroSearchBanner } from '../components/HeroSearchBanner';
@@ -15,9 +15,9 @@ import { NewsletterBox } from '../components/NewsletterBox';
 import { BannerAd } from '../components/BannerAd';
 import {
   SEED_LIVE_STORIES,
-  SEED_TRENDING_NOW,
   SEED_OPINIONS,
 } from '../data/seedData';
+import { getTrendingSettings, TrendingSettings } from '../utils/trendingManager';
 
 interface HomeViewProps {
   articles: Article[];
@@ -45,6 +45,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
   // Live stories modal state
   const [activeStory, setActiveStory] = useState<LiveStory | null>(null);
   const activeStoriesList = liveStories.length > 0 ? liveStories : SEED_LIVE_STORIES;
+
+  // Dynamic Trending Settings State
+  const [trendingSettings, setTrendingSettings] = useState<TrendingSettings>(() => getTrendingSettings());
+
+  useEffect(() => {
+    const handleUpdated = () => {
+      setTrendingSettings(getTrendingSettings());
+    };
+    window.addEventListener('trending-updated', handleUpdated);
+    window.addEventListener('storage', handleUpdated);
+    return () => {
+      window.removeEventListener('trending-updated', handleUpdated);
+      window.removeEventListener('storage', handleUpdated);
+    };
+  }, []);
 
   // Filter articles based on activeCategory
   const filteredArticles =
@@ -102,7 +117,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
         return;
       }
     }
-    onOpenSearch();
+    if (onSearchQuery) {
+      onSearchQuery(item.title);
+    } else {
+      onOpenSearch();
+    }
   };
 
   // Handle opinion click
@@ -188,7 +207,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
             {/* Right Column: Trending Now + Today's Insight (3 cols) */}
             <div className="lg:col-span-3">
               <TrendingColumn
-                trending={SEED_TRENDING_NOW}
+                trending={trendingSettings.items}
+                sectionTitle={trendingSettings.sectionTitle}
+                isTrendingEnabled={trendingSettings.isEnabled}
                 insightArticle={insightArticle}
                 onSelectTrending={handleSelectTrending}
                 onSelectArticle={onSelectArticle}
