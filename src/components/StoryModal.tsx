@@ -123,11 +123,18 @@ export const StoryModal: React.FC<StoryModalProps> = ({
           </button>
         )}
         {/* Background Image */}
-        <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 z-0 bg-slate-900">
           <img
-            src={currentStory.image}
+            src={currentStory.image || '/brics-2026-summit.svg'}
             alt={currentStory.title}
+            referrerPolicy="no-referrer"
             className="w-full h-full object-cover"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              if (target.src !== '/brics-2026-summit.svg') {
+                target.src = '/brics-2026-summit.svg';
+              }
+            }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-slate-950/40" />
         </div>

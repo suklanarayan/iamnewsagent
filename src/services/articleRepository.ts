@@ -404,6 +404,12 @@ export function getStorageStatus(): {
 /**
  * Local storage helpers for Live Stories
  */
+const BROKEN_IMAGE_HEALING_MAP: Record<string, string> = {
+  'photo-1601055903647-87332213e2d6': 'https://images.unsplash.com/photo-1620766182966-c6eb5ed2b788?auto=format&fit=crop&w=300&q=80',
+  'photo-1517976487502-5f7140e4f3a9': 'https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?auto=format&fit=crop&w=300&q=80',
+  'photo-1531415074868-036b1c57e329': 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=300&q=80',
+};
+
 export function getLocalLiveStories(): LiveStory[] {
   try {
     const raw = localStorage.getItem(LIVE_STORIES_STORAGE_KEY);
@@ -411,6 +417,21 @@ export function getLocalLiveStories(): LiveStory[] {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
         let merged = false;
+        // Fix any legacy 404 URLs in cached local storage
+        for (const story of parsed as LiveStory[]) {
+          if (story.id === 'story-brics-2026') {
+            if (!story.image || story.image.includes('photo-1517976487502-5f7140e4f3a9')) {
+              story.image = '/brics-2026-summit.svg';
+              merged = true;
+            }
+          }
+          for (const [badKey, goodUrl] of Object.entries(BROKEN_IMAGE_HEALING_MAP)) {
+            if (story.image && story.image.includes(badKey)) {
+              story.image = goodUrl;
+              merged = true;
+            }
+          }
+        }
         for (const seedStory of SEED_LIVE_STORIES) {
           if (!parsed.some((s: LiveStory) => s.id === seedStory.id)) {
             parsed.unshift(seedStory);
@@ -446,10 +467,35 @@ export async function getLiveStories(): Promise<LiveStory[]> {
     try {
       const snap = await getDocs(collection(db, 'live_stories'));
       if (!snap.empty) {
-        const stories = snap.docs.map((d) => ({
+        let stories = snap.docs.map((d) => ({
           id: d.id,
           ...(d.data() as Omit<LiveStory, 'id'>),
         }));
+
+        // Heal any legacy 404 image URLs in Firestore
+        for (const story of stories) {
+          if (story.id === 'story-brics-2026') {
+            if (!story.image || story.image.includes('photo-1517976487502-5f7140e4f3a9')) {
+              story.image = '/brics-2026-summit.svg';
+              updateDoc(doc(db, 'live_stories', story.id), { image: '/brics-2026-summit.svg' }).catch(console.warn);
+            }
+          }
+          for (const [badKey, goodUrl] of Object.entries(BROKEN_IMAGE_HEALING_MAP)) {
+            if (story.image && story.image.includes(badKey)) {
+              story.image = goodUrl;
+              updateDoc(doc(db, 'live_stories', story.id), { image: goodUrl }).catch(console.warn);
+            }
+          }
+        }
+
+        // Merge any missing seed stories into Firestore
+        for (const seedStory of SEED_LIVE_STORIES) {
+          if (!stories.some((s) => s.id === seedStory.id)) {
+            stories.unshift(seedStory);
+            setDoc(doc(db, 'live_stories', seedStory.id), seedStory).catch(console.warn);
+          }
+        }
+
         setLocalLiveStories(stories);
         return stories;
       } else {

@@ -35,14 +35,16 @@ interface LiveStoriesManagerTabProps {
 }
 
 const PRESET_STORY_IMAGES = [
-  { label: 'Space & Launch', url: 'https://images.unsplash.com/photo-1517976487502-5f7140e4f3a9?auto=format&fit=crop&w=600&q=80' },
+  { label: 'BRICS 2026 Summit (Vector Graphic)', url: '/brics-2026-summit.svg' },
   { label: 'Diplomacy & Summit', url: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=600&q=80' },
+  { label: 'Space & Launch', url: 'https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?auto=format&fit=crop&w=600&q=80' },
   { label: 'Mobile & Hardware', url: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=600&q=80' },
-  { label: 'Indian Festival', url: 'https://images.unsplash.com/photo-1601055903647-87332213e2d6?auto=format&fit=crop&w=600&q=80' },
-  { label: 'Stadium & Sports', url: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=600&q=80' },
+  { label: 'Indian Festival & Culture', url: 'https://images.unsplash.com/photo-1620766182966-c6eb5ed2b788?auto=format&fit=crop&w=600&q=80' },
+  { label: 'Cricket & Sports', url: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=600&q=80' },
   { label: 'Stock & Financial', url: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=600&q=80' },
   { label: 'Electric & Green Energy', url: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=600&q=80' },
   { label: 'Cyber Defense', url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80' },
+  { label: 'Monsoon & Weather', url: 'https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?auto=format&fit=crop&w=600&q=80' },
 ];
 
 const STORY_CATEGORIES = [
@@ -476,6 +478,7 @@ export const LiveStoriesManagerTab: React.FC<LiveStoriesManagerTabProps> = ({
               <div>
                 <ImageUploader
                   imageUrl={formImage}
+                  onChangeImageUrl={(url) => setFormImage(url)}
                   onImageChange={(url) => setFormImage(url)}
                   label="Story Visual / Cover Photo"
                   suggestedTopic={formCategory}

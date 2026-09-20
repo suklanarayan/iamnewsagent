@@ -52,8 +52,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
       ? articles
       : articles.filter((a) => a.category === activeCategory);
 
-  // Identify lead hero article (Space Ambitions or breaking)
+  // Identify lead hero article (prioritize Narayan Shukla's prepared BRICS analysis, or breaking)
   const heroArticle =
+    filteredArticles.find((a) => a.id === 'art-brics-2026-summit') ||
     filteredArticles.find((a) => a.isBreaking) ||
     filteredArticles.find((a) => a.slug === 'india-space-ambitions-reach-new-heights') ||
     filteredArticles[0];

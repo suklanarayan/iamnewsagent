@@ -7,6 +7,27 @@ interface LiveStoriesBarProps {
   onSelectStory: (story: LiveStory) => void;
 }
 
+// Fallback category imagery for live stories in case of network or 404 error
+const getLiveStoryFallback = (category?: string) => {
+  const cat = (category || '').toLowerCase();
+  if (cat.includes('world') || cat.includes('diplomacy')) {
+    return 'https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=300&q=80';
+  }
+  if (cat.includes('science') || cat.includes('space')) {
+    return 'https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?auto=format&fit=crop&w=300&q=80';
+  }
+  if (cat.includes('culture') || cat.includes('festival')) {
+    return 'https://images.unsplash.com/photo-1620766182966-c6eb5ed2b788?auto=format&fit=crop&w=300&q=80';
+  }
+  if (cat.includes('sport') || cat.includes('cricket')) {
+    return 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=300&q=80';
+  }
+  if (cat.includes('tech')) {
+    return 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=300&q=80';
+  }
+  return '/brics-2026-summit.svg';
+};
+
 export const LiveStoriesBar: React.FC<LiveStoriesBarProps> = ({
   stories,
   onSelectStory,
@@ -48,12 +69,20 @@ export const LiveStoriesBar: React.FC<LiveStoriesBarProps> = ({
             >
               {/* Avatar circle with multi-stop border gradient */}
               <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-red-600 group-hover:scale-105 transition-transform shadow-xs">
-                <div className="p-0.5 bg-white rounded-full">
+                <div className="p-0.5 bg-white rounded-full overflow-hidden">
                   <img
-                    src={story.image}
+                    src={story.image || getLiveStoryFallback(story.category)}
                     alt={story.title}
+                    referrerPolicy="no-referrer"
                     className="w-16 h-16 sm:w-18 sm:h-18 rounded-full object-cover"
                     loading="lazy"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      const fallback = getLiveStoryFallback(story.category);
+                      if (target.src !== fallback) {
+                        target.src = fallback;
+                      }
+                    }}
                   />
                 </div>
 

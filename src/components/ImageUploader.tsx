@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Upload,
   Image as ImageIcon,
@@ -17,29 +17,37 @@ import { resolveCuratedImageUrl } from '../services/aiNewsService';
 
 interface ImageUploaderProps {
   imageUrl: string;
-  onChangeImageUrl: (url: string) => void;
+  onChangeImageUrl?: (url: string) => void;
+  onImageChange?: (url: string) => void;
   imageCaption?: string;
   onChangeImageCaption?: (caption: string) => void;
   onInsertIntoBody?: (markdownSnippet: string) => void;
+  label?: string;
+  suggestedTopic?: string;
 }
 
 const CURATED_IMAGE_PRESETS = [
+  { label: 'BRICS 2026 Summit (Vector Graphic)', category: 'World', url: '/brics-2026-summit.svg' },
+  { label: 'Diplomacy & Global Summit', category: 'World', url: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=1200&q=80' },
   { label: 'AI & Data Core', category: 'Technology', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80' },
-  { label: 'Semiconductor Fab', category: 'Technology', url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80' },
-  { label: 'Space & Rocketry', category: 'Science', url: 'https://images.unsplash.com/photo-1517976487502-5f7140e4f3a9?auto=format&fit=crop&w=1200&q=80' },
-  { label: 'Diplomacy & Summit', category: 'World', url: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=1200&q=80' },
-  { label: 'Dalal Street / Markets', category: 'Markets', url: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80' },
-  { label: 'Green Energy / Solar', category: 'Business', url: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=1200&q=80' },
-  { label: 'Cyber Defense / Radar', category: 'Defense', url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1200&q=80' },
-  { label: 'Indian Heritage & Tech', category: 'India', url: 'https://images.unsplash.com/photo-1599818818817-268e37841f3e?auto=format&fit=crop&w=1200&q=80' },
+  { label: 'Space Launch & Rocketry', category: 'Science', url: 'https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?auto=format&fit=crop&w=1200&q=80' },
+  { label: 'Dalal Street & Stock Market', category: 'Markets', url: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80' },
+  { label: 'Indian Festival & Culture', category: 'Culture', url: 'https://images.unsplash.com/photo-1620766182966-c6eb5ed2b788?auto=format&fit=crop&w=1200&q=80' },
+  { label: 'Cricket & Stadium Sports', category: 'Sports', url: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=1200&q=80' },
+  { label: 'Green Energy & Solar Grid', category: 'Business', url: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=1200&q=80' },
+  { label: 'Cyber Defense & Tech', category: 'Defense', url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1200&q=80' },
+  { label: 'Hardware & Smartphone', category: 'Technology', url: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=1200&q=80' },
 ];
 
 export const ImageUploader: React.FC<ImageUploaderProps> = ({
   imageUrl,
   onChangeImageUrl,
+  onImageChange,
   imageCaption = '',
   onChangeImageCaption,
   onInsertIntoBody,
+  label = 'Visual / Cover Photo',
+  suggestedTopic = '',
 }) => {
   const [activeTab, setActiveTab] = useState<'upload' | 'url' | 'presets' | 'ai'>('upload');
   const [isDragging, setIsDragging] = useState(false);
@@ -47,15 +55,37 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   const [uploadMeta, setUploadMeta] = useState<OptimizedImageResult | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [insertSuccess, setInsertSuccess] = useState(false);
-  const [topicPrompt, setTopicPrompt] = useState('');
+  const [topicPrompt, setTopicPrompt] = useState(suggestedTopic);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState(false);
+  const [urlInputVal, setUrlInputVal] = useState(imageUrl || '');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Unified safe callback
+  const setUrl = (newUrl: string) => {
+    setPreviewError(false);
+    setErrorMsg(null);
+    setUrlInputVal(newUrl);
+    if (typeof onChangeImageUrl === 'function') {
+      onChangeImageUrl(newUrl);
+    }
+    if (typeof onImageChange === 'function') {
+      onImageChange(newUrl);
+    }
+  };
+
+  // Sync url input if parent imageUrl changes
+  useEffect(() => {
+    setUrlInputVal(imageUrl || '');
+    setPreviewError(false);
+  }, [imageUrl]);
+
   // Process File handler
   const handleFile = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      setErrorMsg('Please select a valid image file (PNG, JPG, WebP, SVG).');
+    const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|svg|gif|avif)$/i.test(file.name);
+    if (!isImage) {
+      setErrorMsg('Please select a valid image file (PNG, JPG, WebP, SVG, GIF).');
       return;
     }
 
@@ -65,16 +95,16 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     try {
       const result = await processAndOptimizeImage(file);
       setUploadMeta(result);
-      onChangeImageUrl(result.dataUrl);
+      setUrl(result.dataUrl);
 
       // Auto-set suggested caption if empty
       if (!imageCaption && onChangeImageCaption) {
         const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-        onChangeImageCaption(`Photo/Graphic: ${cleanName}`);
+        onChangeImageCaption(`Graphic: ${cleanName}`);
       }
     } catch (err) {
-      console.error(err);
-      setErrorMsg(`Failed to process image: ${(err as Error).message}`);
+      console.error('Image processing error:', err);
+      setErrorMsg(`Failed to process image: ${(err as Error).message || 'Unknown error'}`);
     } finally {
       setIsProcessing(false);
     }
@@ -129,7 +159,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   const handleGenerateCuratedTopic = () => {
     if (!topicPrompt.trim()) return;
     const resolvedUrl = resolveCuratedImageUrl('Technology', topicPrompt.trim());
-    onChangeImageUrl(resolvedUrl);
+    setUrl(resolvedUrl);
     if (!imageCaption && onChangeImageCaption) {
       onChangeImageCaption(`Editorial archive: ${topicPrompt.trim()}`);
     }
@@ -141,11 +171,11 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         <div className="flex items-center gap-2">
           <ImageIcon className="w-4 h-4 text-amber-400" />
           <h4 className="text-xs font-intel font-bold uppercase tracking-wider text-slate-200">
-            News & Announcement Image Studio
+            {label}
           </h4>
         </div>
         <span className="text-[10px] text-slate-400 font-mono">
-          Upload / URL / Presets
+          Upload • Direct URL • Presets
         </span>
       </div>
 
@@ -261,21 +291,65 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
       {/* TAB 2: EXTERNAL WEB URL */}
       {activeTab === 'url' && (
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           <label className="block text-[11px] font-intel text-slate-300">
-            Paste Direct Image URL (Unsplash, Cloudinary, AWS S3, Imgur, CDN):
+            Paste Direct Image URL or Relative Path (PNG, JPG, WebP, SVG, CDN):
           </label>
-          <div className="flex items-center rounded-lg bg-slate-950 border border-slate-700 overflow-hidden">
-            <span className="px-3 py-2 text-slate-500 bg-slate-900 border-r border-slate-800">
-              <LinkIcon className="w-3.5 h-3.5" />
-            </span>
-            <input
-              type="url"
-              value={imageUrl}
-              onChange={(e) => onChangeImageUrl(e.target.value)}
-              placeholder="https://images.unsplash.com/... or https://yourcdn.com/announcement.jpg"
-              className="flex-1 px-3 py-2 bg-transparent text-slate-200 text-xs font-mono focus:outline-none"
-            />
+          <div className="flex items-center gap-2">
+            <div className="flex-1 flex items-center rounded-lg bg-slate-950 border border-slate-700 overflow-hidden focus-within:border-amber-400">
+              <span className="px-3 py-2 text-slate-500 bg-slate-900 border-r border-slate-800">
+                <LinkIcon className="w-3.5 h-3.5" />
+              </span>
+              <input
+                type="text"
+                value={urlInputVal}
+                onChange={(e) => {
+                  setUrlInputVal(e.target.value);
+                  setUrl(e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    setUrl(urlInputVal.trim());
+                  }
+                }}
+                placeholder="e.g. /brics-2026-summit.svg or https://images.unsplash.com/..."
+                className="flex-1 px-3 py-2 bg-transparent text-slate-200 text-xs font-mono focus:outline-none"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setUrl(urlInputVal.trim())}
+              className="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs cursor-pointer transition-colors"
+            >
+              Apply
+            </button>
+          </div>
+
+          {/* Quick shortcuts for user convenience */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <span className="text-[10px] text-slate-400 font-intel">Quick Shortcuts:</span>
+            <button
+              type="button"
+              onClick={() => setUrl('/brics-2026-summit.svg')}
+              className="px-2 py-0.5 rounded text-[10px] bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono transition-colors"
+            >
+              /brics-2026-summit.svg (BRICS Vector)
+            </button>
+            <button
+              type="button"
+              onClick={() => setUrl('https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=600&q=80')}
+              className="px-2 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-intel transition-colors"
+            >
+              Diplomacy Summit
+            </button>
+            <button
+              type="button"
+              onClick={() => setUrl('https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?auto=format&fit=crop&w=600&q=80')}
+              className="px-2 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-intel transition-colors"
+            >
+              Space & Rocket
+            </button>
           </div>
         </div>
       )}
@@ -283,19 +357,19 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       {/* TAB 3: CURATED PRESETS */}
       {activeTab === 'presets' && (
         <div className="space-y-2">
-          <div className="text-[11px] text-slate-400">Click any curated high-resolution editorial visual:</div>
-          <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
+          <div className="text-[11px] text-slate-400">Click any curated visual to apply immediately:</div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             {CURATED_IMAGE_PRESETS.map((preset, i) => (
               <button
                 key={i}
                 type="button"
                 onClick={() => {
-                  onChangeImageUrl(preset.url);
+                  setUrl(preset.url);
                   if (!imageCaption && onChangeImageCaption) {
                     onChangeImageCaption(`Editorial visual: ${preset.label}`);
                   }
                 }}
-                className={`group relative h-16 rounded-lg overflow-hidden border transition-all cursor-pointer ${
+                className={`group relative h-20 rounded-lg overflow-hidden border transition-all cursor-pointer ${
                   imageUrl === preset.url
                     ? 'border-amber-400 ring-2 ring-amber-400/40'
                     : 'border-slate-800 hover:border-slate-600'
@@ -305,10 +379,11 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                 <img
                   src={preset.url}
                   alt={preset.label}
+                  referrerPolicy="no-referrer"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end p-1">
-                  <span className="text-[9px] font-bold text-white line-clamp-1">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex items-end p-1.5">
+                  <span className="text-[10px] font-bold text-white line-clamp-2 leading-tight">
                     {preset.label}
                   </span>
                 </div>
@@ -349,19 +424,33 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       {imageUrl && (
         <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
           <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-slate-900 aspect-video max-h-48 flex items-center justify-center">
-            <img
-              src={imageUrl}
-              alt="Preview"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                // handle broken url
-                (e.target as HTMLImageElement).src = CURATED_IMAGE_PRESETS[0].url;
-              }}
-            />
+            {previewError ? (
+              <div className="flex flex-col items-center justify-center text-center p-4 space-y-1.5 text-amber-300">
+                <AlertCircle className="w-6 h-6 text-amber-400" />
+                <p className="text-xs font-semibold">Image could not be previewed</p>
+                <p className="text-[10px] text-slate-400 max-w-xs font-mono break-all">{imageUrl}</p>
+                <button
+                  type="button"
+                  onClick={() => setUrl('/brics-2026-summit.svg')}
+                  className="mt-1 px-2.5 py-1 rounded text-[10px] bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 cursor-pointer"
+                >
+                  Use /brics-2026-summit.svg
+                </button>
+              </div>
+            ) : (
+              <img
+                src={imageUrl}
+                alt="Preview"
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover"
+                onLoad={() => setPreviewError(false)}
+                onError={() => setPreviewError(true)}
+              />
+            )}
             <div className="absolute top-2 right-2 flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => onChangeImageUrl('')}
+                onClick={() => setUrl('')}
                 className="p-1.5 rounded-md bg-slate-950/80 hover:bg-red-900 text-slate-400 hover:text-white backdrop-blur border border-slate-700 transition-colors"
                 title="Clear image"
               >
