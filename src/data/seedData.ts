@@ -75,6 +75,7 @@ export const SEED_LIVE_STORIES: LiveStory[] = [
     subtitle: 'New Delhi',
     image: '/brics-2026-summit.svg',
     isLive: true,
+    order: 0,
     category: 'World',
     articleSlug: 'from-voice-to-impact-18th-brics-summit-india-global-role',
     keyPoints: [
@@ -89,6 +90,7 @@ export const SEED_LIVE_STORIES: LiveStory[] = [
     subtitle: 'New Delhi',
     image: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=300&q=80',
     isLive: true,
+    order: 1,
     category: 'India',
     articleSlug: 'india-space-ambitions-reach-new-heights',
     keyPoints: [
@@ -103,6 +105,7 @@ export const SEED_LIVE_STORIES: LiveStory[] = [
     subtitle: 'Kolkata',
     image: 'https://images.unsplash.com/photo-1620766182966-c6eb5ed2b788?auto=format&fit=crop&w=300&q=80',
     isLive: false,
+    order: 2,
     category: 'Culture',
     articleSlug: 'durga-puja-2025-tradition-culture-modern-kolkata',
     keyPoints: [
@@ -117,6 +120,7 @@ export const SEED_LIVE_STORIES: LiveStory[] = [
     subtitle: 'Launch',
     image: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=300&q=80',
     isLive: false,
+    order: 3,
     category: 'Technology',
     articleSlug: 'ai-is-reshaping-how-we-work-are-we-ready',
     keyPoints: [
@@ -131,6 +135,7 @@ export const SEED_LIVE_STORIES: LiveStory[] = [
     subtitle: 'Live',
     image: 'https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?auto=format&fit=crop&w=300&q=80',
     isLive: true,
+    order: 4,
     category: 'Science',
     articleSlug: 'india-space-ambitions-reach-new-heights',
     keyPoints: [
@@ -145,6 +150,7 @@ export const SEED_LIVE_STORIES: LiveStory[] = [
     subtitle: 'India',
     image: 'https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?auto=format&fit=crop&w=300&q=80',
     isLive: false,
+    order: 5,
     category: 'Weather',
     articleSlug: 'climate-change-2025-where-do-we-stand',
     keyPoints: [
@@ -159,6 +165,7 @@ export const SEED_LIVE_STORIES: LiveStory[] = [
     subtitle: 'Cricket',
     image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=300&q=80',
     isLive: false,
+    order: 6,
     category: 'Sports',
     articleSlug: 'india-space-ambitions-reach-new-heights',
     keyPoints: [
@@ -173,6 +180,7 @@ export const SEED_LIVE_STORIES: LiveStory[] = [
     subtitle: 'Sensex',
     image: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=300&q=80',
     isLive: false,
+    order: 7,
     category: 'Markets',
     articleSlug: 'markets-rally-as-global-cues-turn-positive',
     keyPoints: [
@@ -187,6 +195,7 @@ export const SEED_LIVE_STORIES: LiveStory[] = [
     subtitle: 'Tech',
     image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=300&q=80',
     isLive: false,
+    order: 8,
     category: 'Technology',
     articleSlug: 'ai-is-reshaping-how-we-work-are-we-ready',
     keyPoints: [
@@ -201,6 +210,7 @@ export const SEED_LIVE_STORIES: LiveStory[] = [
     subtitle: 'Mumbai',
     image: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=300&q=80',
     isLive: false,
+    order: 9,
     category: 'Lifestyle',
     articleSlug: 'a-new-era-for-indian-cinema',
     keyPoints: [
@@ -215,6 +225,7 @@ export const SEED_LIVE_STORIES: LiveStory[] = [
     subtitle: 'World',
     image: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=300&q=80',
     isLive: false,
+    order: 10,
     category: 'World',
     articleSlug: 'india-and-japan-deepen-strategic-ties',
     keyPoints: [
@@ -229,6 +240,7 @@ export const SEED_LIVE_STORIES: LiveStory[] = [
     subtitle: 'Wellness',
     image: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=300&q=80',
     isLive: false,
+    order: 11,
     category: 'Health',
     articleSlug: 'climate-change-2025-where-do-we-stand',
     keyPoints: [
@@ -240,11 +252,11 @@ export const SEED_LIVE_STORIES: LiveStory[] = [
 ];
 
 export const SEED_TRENDING_NOW: TrendingItem[] = [
-  { id: 1, rank: 1, title: '18th BRICS Summit New Delhi Declaration', category: 'World', searchVolume: '460K searches', slug: 'from-voice-to-impact-18th-brics-summit-india-global-role' },
-  { id: 2, rank: 2, title: 'Chandrayaan-4 mission updates', category: 'Science', searchVolume: '320K searches', slug: 'india-space-ambitions-reach-new-heights' },
-  { id: 3, rank: 3, title: 'India vs Bangladesh live score', category: 'Sports', searchVolume: '280K searches', slug: 'india-space-ambitions-reach-new-heights' },
-  { id: 4, rank: 4, title: 'iPhone 17 launch highlights', category: 'Technology', searchVolume: '240K searches', slug: 'ai-is-reshaping-how-we-work-are-we-ready' },
-  { id: 5, rank: 5, title: 'GST reform latest news', category: 'Business', searchVolume: '190K searches', slug: 'markets-rally-as-global-cues-turn-positive' }
+  { id: 1, rank: 1, title: '18th BRICS Summit New Delhi Declaration', category: 'World', searchVolume: '460K searches', slug: 'from-voice-to-impact-18th-brics-summit-india-global-role', destinationUrl: '/article/from-voice-to-impact-18th-brics-summit-india-global-role' },
+  { id: 2, rank: 2, title: 'Chandrayaan-4 mission updates', category: 'Science', searchVolume: '320K searches', slug: 'india-space-ambitions-reach-new-heights', destinationUrl: '/article/india-space-ambitions-reach-new-heights' },
+  { id: 3, rank: 3, title: 'India vs Bangladesh live score', category: 'Sports', searchVolume: '280K searches', slug: 'india-space-ambitions-reach-new-heights', destinationUrl: '/article/india-space-ambitions-reach-new-heights' },
+  { id: 4, rank: 4, title: 'iPhone 17 launch highlights', category: 'Technology', searchVolume: '240K searches', slug: 'ai-is-reshaping-how-we-work-are-we-ready', destinationUrl: '/article/ai-is-reshaping-how-we-work-are-we-ready' },
+  { id: 5, rank: 5, title: 'GST reform latest news', category: 'Business', searchVolume: '190K searches', slug: 'markets-rally-as-global-cues-turn-positive', destinationUrl: '/article/markets-rally-as-global-cues-turn-positive' }
 ];
 
 export const SEED_OPINIONS: OpinionPiece[] = [

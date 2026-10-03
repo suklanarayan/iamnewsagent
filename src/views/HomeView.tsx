@@ -67,11 +67,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
       ? articles
       : articles.filter((a) => a.category === activeCategory);
 
-  // Identify lead hero article (prioritize Narayan Shukla's prepared BRICS analysis, or breaking)
+  // Identify lead hero article (breaking news first, then newest published article so new stories always lead)
   const heroArticle =
-    filteredArticles.find((a) => a.id === 'art-brics-2026-summit') ||
     filteredArticles.find((a) => a.isBreaking) ||
-    filteredArticles.find((a) => a.slug === 'india-space-ambitions-reach-new-heights') ||
     filteredArticles[0];
 
   // Middle stacked stories (up to 4 articles excluding hero)
@@ -108,8 +106,34 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }
   };
 
-  // Handle trending item click
+  // Handle trending item click with Destination Link support
   const handleSelectTrending = (item: TrendingItem) => {
+    if (item.destinationUrl && item.destinationUrl.trim()) {
+      const dest = item.destinationUrl.trim();
+      if (dest.startsWith('http://') || dest.startsWith('https://')) {
+        window.open(dest, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      if (dest.startsWith('/article/')) {
+        const slug = dest.replace('/article/', '');
+        const match = articles.find((a) => a.slug === slug || a.id === slug);
+        if (match) {
+          onSelectArticle(match);
+          return;
+        }
+      }
+      const directMatch = articles.find((a) => a.slug === dest || a.id === dest);
+      if (directMatch) {
+        onSelectArticle(directMatch);
+        return;
+      }
+      if (dest.startsWith('/')) {
+        window.history.pushState({}, '', dest);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+        return;
+      }
+    }
+
     if (item.slug) {
       const match = articles.find((a) => a.slug === item.slug);
       if (match) {
@@ -117,6 +141,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         return;
       }
     }
+
     if (onSearchQuery) {
       onSearchQuery(item.title);
     } else {

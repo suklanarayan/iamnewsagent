@@ -26,7 +26,10 @@ export function getTrendingSettings(): TrendingSettings {
         return {
           sectionTitle: parsed.sectionTitle || 'Trending Now',
           isEnabled: typeof parsed.isEnabled === 'boolean' ? parsed.isEnabled : true,
-          items: parsed.items,
+          items: parsed.items.map((it: TrendingItem) => ({
+            ...it,
+            destinationUrl: it.destinationUrl || (it.slug ? `/article/${it.slug}` : undefined),
+          })),
         };
       }
     }

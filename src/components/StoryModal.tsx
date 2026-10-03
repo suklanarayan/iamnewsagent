@@ -210,17 +210,40 @@ export const StoryModal: React.FC<StoryModalProps> = ({
             </ul>
           </div>
 
-          {/* Read full article button if linked */}
-          {currentStory.articleSlug && onSelectArticleSlug && (
+          {/* Read full article button or destination link */}
+          {(currentStory.destinationUrl || (currentStory.articleSlug && onSelectArticleSlug)) && (
             <button
               type="button"
               onClick={() => {
                 onClose();
-                onSelectArticleSlug(currentStory.articleSlug!);
+                if (currentStory.destinationUrl) {
+                  const url = currentStory.destinationUrl.trim();
+                  if (url.startsWith('http://') || url.startsWith('https://')) {
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                    return;
+                  }
+                  if (url.startsWith('/article/') && onSelectArticleSlug) {
+                    onSelectArticleSlug(url.replace('/article/', ''));
+                    return;
+                  }
+                  if (onSelectArticleSlug) {
+                    onSelectArticleSlug(url.replace(/^\//, ''));
+                    return;
+                  }
+                  window.location.href = url;
+                  return;
+                }
+                if (currentStory.articleSlug && onSelectArticleSlug) {
+                  onSelectArticleSlug(currentStory.articleSlug!);
+                }
               }}
               className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-lg cursor-pointer"
             >
-              <span>Read Full Verified Report</span>
+              <span>
+                {currentStory.destinationUrl && (currentStory.destinationUrl.startsWith('http://') || currentStory.destinationUrl.startsWith('https://'))
+                  ? 'Open Destination Link'
+                  : 'Read Full Verified Report'}
+              </span>
               <ArrowRight className="w-4 h-4" />
             </button>
           )}

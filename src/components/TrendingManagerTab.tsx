@@ -17,6 +17,9 @@ import {
   FileText,
   HelpCircle,
   Hash,
+  Link as LinkIcon,
+  Globe,
+  ExternalLink,
 } from 'lucide-react';
 import type { Article, TrendingItem } from '../types';
 import {
@@ -58,6 +61,7 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
   const [formCategory, setFormCategory] = useState('World');
   const [formSearchVolume, setFormSearchVolume] = useState('250K searches');
   const [formSlug, setFormSlug] = useState('');
+  const [formDestinationUrl, setFormDestinationUrl] = useState('');
 
   useEffect(() => {
     const handleUpdated = () => {
@@ -145,12 +149,14 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
     setFormCategory(item.category || 'General');
     setFormSearchVolume(item.searchVolume || '');
     setFormSlug(item.slug || '');
+    setFormDestinationUrl(item.destinationUrl || (item.slug ? `/article/${item.slug}` : ''));
   };
 
   const saveEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formTitle.trim()) return;
 
+    const dest = formDestinationUrl.trim();
     const newItems = settings.items.map((it) => {
       if (it.id === editingItemId) {
         return {
@@ -159,6 +165,7 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
           category: formCategory.trim(),
           searchVolume: formSearchVolume.trim() || undefined,
           slug: formSlug.trim() || undefined,
+          destinationUrl: dest || undefined,
         };
       }
       return it;
@@ -178,12 +185,14 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
     setFormCategory('World');
     setFormSearchVolume('300K searches');
     setFormSlug('');
+    setFormDestinationUrl('');
   };
 
   const submitAddNew = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formTitle.trim()) return;
 
+    const dest = formDestinationUrl.trim();
     const newItem: TrendingItem = {
       id: Date.now(),
       rank: settings.items.length + 1,
@@ -191,6 +200,7 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
       category: formCategory.trim(),
       searchVolume: formSearchVolume.trim() || undefined,
       slug: formSlug.trim() || undefined,
+      destinationUrl: dest || undefined,
     };
 
     const newItems = [...settings.items, newItem];
@@ -199,6 +209,14 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
     saveTrendingSettings(updated);
     setIsAddingNew(false);
     onShowToast(`Added "${newItem.title}" to Trending Now`);
+  };
+
+  // Helper when user selects an article from dropdown
+  const handleSelectArticleInForm = (slugVal: string) => {
+    setFormSlug(slugVal);
+    if (slugVal) {
+      setFormDestinationUrl(`/article/${slugVal}`);
+    }
   };
 
   return (
@@ -215,8 +233,8 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
             </h3>
           </div>
           <p className="text-xs text-slate-400 font-intel mt-1 max-w-2xl">
-            Edit, reorder, add, or remove trending news topics shown in the right-hand sidebar of the Home Page.
-            Readers can click any trending topic to instantly open its matching story or explore matching wire coverage.
+            Edit, reorder, add, or set custom destination links for trending news topics shown in the right-hand sidebar of the Home Page.
+            Readers can click any trending topic to instantly navigate to its destination link or matching story.
           </p>
         </div>
 
@@ -247,7 +265,7 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
         </div>
       </div>
 
-      {/* Grid: Preview on Left/Right, Editor Controls on Main */}
+      {/* Grid: Editor Controls on Left (7 cols), Preview on Right (5 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT / MAIN COLUMN (7 cols): TOPIC LIST & CONTROLS */}
         <div className="lg:col-span-7 space-y-4">
@@ -297,12 +315,12 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
           {isAddingNew && (
             <form
               onSubmit={submitAddNew}
-              className="p-4 rounded-xl bg-slate-900/90 border border-red-500/50 space-y-3 text-xs"
+              className="p-4 rounded-xl bg-slate-900/95 border border-red-500/50 space-y-3 text-xs"
             >
               <div className="flex items-center justify-between pb-2 border-b border-slate-800">
                 <h4 className="font-bold text-red-400 flex items-center gap-1.5">
                   <Plus className="w-4 h-4" />
-                  Add New Trending Topic
+                  Add New Trending Topic & Destination Link
                 </h4>
                 <button
                   type="button"
@@ -359,25 +377,46 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">
-                  Link to Published Article (Optional)
-                </label>
-                <select
-                  value={formSlug}
-                  onChange={(e) => setFormSlug(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:border-red-400 focus:outline-none"
-                >
-                  <option value="">-- Open Search Query (Default) --</option>
-                  {articles.map((art) => (
-                    <option key={art.id} value={art.slug}>
-                      {art.category}: {art.title}
-                    </option>
-                  ))}
-                </select>
-                <span className="text-[10px] text-slate-400 mt-1 block">
-                  If selected, clicking this trending topic opens that story directly. If left blank, it initiates a live search for this topic.
-                </span>
+              {/* DESTINATION LINK SECTION (Directly addresses User Request #3) */}
+              <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-2.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-red-400">
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Destination Link Option</span>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-slate-300 font-semibold mb-1">
+                    Destination URL / Target Link
+                  </label>
+                  <input
+                    type="text"
+                    value={formDestinationUrl}
+                    onChange={(e) => setFormDestinationUrl(e.target.value)}
+                    placeholder="e.g. https://... or /article/your-slug or /category/world"
+                    className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white font-mono text-xs focus:border-red-400 focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    When clicked on the homepage, readers will navigate directly to this destination link.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-slate-300 font-semibold mb-1">
+                    Or Pick from Published Articles (Auto-fills link)
+                  </label>
+                  <select
+                    value={formSlug}
+                    onChange={(e) => handleSelectArticleInForm(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 text-xs focus:border-red-400 focus:outline-none"
+                  >
+                    <option value="">-- Custom Destination Link / Search Query --</option>
+                    {articles.map((art) => (
+                      <option key={art.id} value={art.slug}>
+                        {art.category}: {art.headline || (art as any).title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
@@ -390,7 +429,7 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold"
+                  className="px-4 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold cursor-pointer"
                 >
                   Add Topic
                 </button>
@@ -398,7 +437,7 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
             </form>
           )}
 
-          {/* EDIT TOPIC FORM MODAL */}
+          {/* EDIT TOPIC FORM */}
           {editingItemId !== null && (
             <form
               onSubmit={saveEdit}
@@ -407,7 +446,7 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
               <div className="flex items-center justify-between pb-2 border-b border-slate-800">
                 <h4 className="font-bold text-amber-400 flex items-center gap-1.5">
                   <Edit2 className="w-4 h-4" />
-                  Edit Trending Topic
+                  Edit Trending Topic & Destination Link
                 </h4>
                 <button
                   type="button"
@@ -462,22 +501,46 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">
-                  Link to Published Article (Optional)
-                </label>
-                <select
-                  value={formSlug}
-                  onChange={(e) => setFormSlug(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:border-amber-400 focus:outline-none"
-                >
-                  <option value="">-- Open Search Query (Default) --</option>
-                  {articles.map((art) => (
-                    <option key={art.id} value={art.slug}>
-                      {art.category}: {art.title}
-                    </option>
-                  ))}
-                </select>
+              {/* DESTINATION LINK SECTION (Directly addresses User Request #3) */}
+              <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-2.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300">
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Destination Link Option</span>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-slate-300 font-semibold mb-1">
+                    Destination URL / Target Link
+                  </label>
+                  <input
+                    type="text"
+                    value={formDestinationUrl}
+                    onChange={(e) => setFormDestinationUrl(e.target.value)}
+                    placeholder="e.g. https://... or /article/your-slug or /category/world"
+                    className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white font-mono text-xs focus:border-amber-400 focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    When clicked on the homepage, readers will navigate directly to this destination link.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-slate-300 font-semibold mb-1">
+                    Or Pick from Published Articles (Auto-fills link)
+                  </label>
+                  <select
+                    value={formSlug}
+                    onChange={(e) => handleSelectArticleInForm(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 text-xs focus:border-amber-400 focus:outline-none"
+                  >
+                    <option value="">-- Custom Destination Link / Search Query --</option>
+                    {articles.map((art) => (
+                      <option key={art.id} value={art.slug}>
+                        {art.category}: {art.headline || (art as any).title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
@@ -490,7 +553,7 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold"
+                  className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold cursor-pointer"
                 >
                   Save Changes
                 </button>
@@ -527,20 +590,33 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
                       <h4 className="text-slate-100 font-semibold truncate text-sm">
                         {item.title}
                       </h4>
-                      {matchedArticle ? (
-                        <span className="text-[10px] text-emerald-400 flex items-center gap-1 mt-0.5">
-                          <FileText className="w-3 h-3" />
-                          Linked: {matchedArticle.title}
-                        </span>
-                      ) : item.slug ? (
-                        <span className="text-[10px] text-slate-400 mt-0.5">
-                          Slug: {item.slug}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-slate-400 mt-0.5">
-                          Opens search on click
-                        </span>
-                      )}
+
+                      {/* Destination Link / Slug Display */}
+                      <div className="mt-1 flex items-center gap-2 flex-wrap">
+                        {item.destinationUrl ? (
+                          <span
+                            className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1 font-mono truncate max-w-[280px]"
+                            title={item.destinationUrl}
+                          >
+                            <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">Destination: {item.destinationUrl}</span>
+                          </span>
+                        ) : matchedArticle ? (
+                          <span className="text-[10px] text-emerald-400 flex items-center gap-1">
+                            <FileText className="w-3 h-3" />
+                            <span>Linked Article: {matchedArticle.headline}</span>
+                          </span>
+                        ) : item.slug ? (
+                          <span className="text-[10px] text-slate-400">
+                            Slug: {item.slug}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                            <Search className="w-3 h-3" />
+                            <span>Opens live search on click</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -567,15 +643,15 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
                     <button
                       type="button"
                       onClick={() => startEdit(item)}
-                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-amber-500/20 text-slate-300 hover:text-amber-400 transition-colors"
-                      title="Edit this topic"
+                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-amber-500/20 text-slate-300 hover:text-amber-400 transition-colors cursor-pointer"
+                      title="Edit this topic and destination link"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDelete(item.id, item.title)}
-                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-300 hover:text-red-400 transition-colors"
+                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-300 hover:text-red-400 transition-colors cursor-pointer"
                       title="Remove from trending"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -618,6 +694,12 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
                     <div className="text-xs sm:text-sm font-semibold text-slate-900 leading-snug line-clamp-2 group-hover:text-red-700 transition-colors">
                       {item.title}
                     </div>
+                    {item.destinationUrl && (
+                      <span className="text-[10px] text-slate-400 flex items-center gap-0.5 mt-0.5 font-mono truncate">
+                        <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
+                        <span className="truncate">{item.destinationUrl}</span>
+                      </span>
+                    )}
                   </div>
                   <ArrowUpRight className="w-4 h-4 text-red-500 flex-shrink-0" />
                 </div>
@@ -628,10 +710,10 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
           <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 text-[11px] text-slate-400 space-y-1.5 font-intel">
             <div className="flex items-center gap-1.5 font-bold text-slate-300">
               <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
-              <span>Editorial Tip:</span>
+              <span>Destination Link Details:</span>
             </div>
             <p>
-              Reorder topics using the up and down arrow buttons. You can add breaking developments or link a trending bullet directly to any published article slug so readers can read the full investigation with one click.
+              You can now configure direct destination links (such as internal article URLs or external links) for any trending topic. Clicking the topic on the homepage will immediately open your specified destination!
             </p>
           </div>
         </div>

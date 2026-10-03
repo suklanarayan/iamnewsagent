@@ -114,7 +114,11 @@ export interface LiveStory {
   isLive?: boolean;
   category: string;
   articleSlug?: string;
+  destinationUrl?: string;
   keyPoints: string[];
+  order?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface TrendingItem {
@@ -124,6 +128,7 @@ export interface TrendingItem {
   category: string;
   searchVolume?: string;
   slug?: string;
+  destinationUrl?: string;
 }
 
 export interface TrendingSettings {

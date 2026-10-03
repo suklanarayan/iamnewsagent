@@ -257,10 +257,13 @@ export async function createArticle(
   data: Omit<Article, 'id' | 'views'>
 ): Promise<Article> {
   const id = 'art-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 6);
+  const now = new Date().toISOString();
   const newArticle: Article = {
     ...data,
     id,
     views: 1,
+    publishedAt: data.publishedAt || now,
+    updatedAt: data.updatedAt || now,
   };
 
   // 1. Save to LocalStorage immediately
@@ -460,6 +463,18 @@ const BROKEN_IMAGE_HEALING_MAP: Record<string, string> = {
   'photo-1531415074868-036b1c57e329': 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=300&q=80',
 };
 
+/**
+ * Sort helper to strictly order stories by 'order' ascending (0 = first)
+ */
+export function sortStoriesByOrder(stories: LiveStory[]): LiveStory[] {
+  return [...stories].sort((a, b) => {
+    const orderA = typeof a.order === 'number' ? a.order : 9999;
+    const orderB = typeof b.order === 'number' ? b.order : 9999;
+    if (orderA !== orderB) return orderA - orderB;
+    return (b.createdAt || '').localeCompare(a.createdAt || '');
+  });
+}
+
 export function getLocalLiveStories(): LiveStory[] {
   try {
     const raw = localStorage.getItem(LIVE_STORIES_STORAGE_KEY);
@@ -484,32 +499,50 @@ export function getLocalLiveStories(): LiveStory[] {
         }
         for (const seedStory of SEED_LIVE_STORIES) {
           if (!parsed.some((s: LiveStory) => s.id === seedStory.id)) {
-            parsed.unshift(seedStory);
+            parsed.push(seedStory);
             merged = true;
           }
         }
+
+        // Ensure every story has a sequential order
+        const sorted = sortStoriesByOrder(parsed);
+        sorted.forEach((story, idx) => {
+          if (story.order !== idx) {
+            story.order = idx;
+            merged = true;
+          }
+        });
+
         if (merged) {
-          localStorage.setItem(LIVE_STORIES_STORAGE_KEY, JSON.stringify(parsed));
+          localStorage.setItem(LIVE_STORIES_STORAGE_KEY, JSON.stringify(sorted));
         }
-        return parsed;
+        return sorted;
       }
     }
   } catch (e) {
     console.error('Failed reading local live stories:', e);
   }
-  return SEED_LIVE_STORIES;
+
+  // Fallback to seeds with explicit sequential order
+  const seeded = SEED_LIVE_STORIES.map((s, idx) => ({
+    ...s,
+    order: typeof s.order === 'number' ? s.order : idx,
+  }));
+  setLocalLiveStories(seeded);
+  return seeded;
 }
 
 export function setLocalLiveStories(stories: LiveStory[]): void {
   try {
-    localStorage.setItem(LIVE_STORIES_STORAGE_KEY, JSON.stringify(stories));
+    const sorted = sortStoriesByOrder(stories);
+    localStorage.setItem(LIVE_STORIES_STORAGE_KEY, JSON.stringify(sorted));
   } catch (e) {
     console.error('Failed saving local live stories:', e);
   }
 }
 
 /**
- * Get all live stories from Firestore or Local Cache
+ * Get all live stories from Firestore or Local Cache, guaranteed sorted with 1st story at index 0
  */
 export async function getLiveStories(): Promise<LiveStory[]> {
   const db = getFirestoreDb();
@@ -541,18 +574,27 @@ export async function getLiveStories(): Promise<LiveStory[]> {
         // Merge any missing seed stories into Firestore
         for (const seedStory of SEED_LIVE_STORIES) {
           if (!stories.some((s) => s.id === seedStory.id)) {
-            stories.unshift(seedStory);
+            stories.push(seedStory);
             setDoc(doc(db, 'live_stories', seedStory.id), seedStory).catch(console.warn);
           }
         }
 
-        setLocalLiveStories(stories);
-        return stories;
+        // Strictly sort by 'order'
+        const sorted = sortStoriesByOrder(stories);
+        sorted.forEach((story, idx) => {
+          story.order = idx;
+        });
+
+        setLocalLiveStories(sorted);
+        return sorted;
       } else {
-        // Seed Firestore with initial live stories
-        for (const story of SEED_LIVE_STORIES) {
+        // Seed Firestore with initial live stories with explicit order
+        const seeded = SEED_LIVE_STORIES.map((s, idx) => ({ ...s, order: idx }));
+        for (const story of seeded) {
           await setDoc(doc(db, 'live_stories', story.id), story);
         }
+        setLocalLiveStories(seeded);
+        return seeded;
       }
     } catch (e) {
       console.warn('Firestore live stories fetch failed, falling back to local storage:', e);
@@ -562,19 +604,49 @@ export async function getLiveStories(): Promise<LiveStory[]> {
 }
 
 /**
- * Create a new live story
+ * Create a new live story.
+ * By default targetPosition is 0 (FIRST position so newly published stories appear first on the wire).
  */
-export async function createLiveStory(data: Omit<LiveStory, 'id'>): Promise<LiveStory> {
+export async function createLiveStory(
+  data: Omit<LiveStory, 'id'>,
+  targetPosition: number = 0
+): Promise<LiveStory> {
   const id = 'story-' + Date.now();
-  const newStory: LiveStory = { ...data, id };
-
+  const now = new Date().toISOString();
   const current = getLocalLiveStories();
-  setLocalLiveStories([newStory, ...current]);
 
+  const safeTargetPos = Math.max(0, Math.min(targetPosition, current.length));
+
+  const newStory: LiveStory = {
+    ...data,
+    id,
+    order: safeTargetPos,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  // Insert newStory at target position (default 0 = FIRST)
+  const updatedStories = [...current];
+  updatedStories.splice(safeTargetPos, 0, newStory);
+
+  // Re-index all orders sequentially: 0, 1, 2, ...
+  updatedStories.forEach((s, idx) => {
+    s.order = idx;
+  });
+
+  setLocalLiveStories(updatedStories);
+
+  // Sync to Firestore
   const db = getFirestoreDb();
   if (db) {
     try {
       await setDoc(doc(db, 'live_stories', id), newStory);
+      // Update order on all stories in Firestore
+      for (const story of updatedStories) {
+        if (story.id !== id) {
+          updateDoc(doc(db, 'live_stories', story.id), { order: story.order }).catch(console.warn);
+        }
+      }
     } catch (e) {
       console.error('Failed saving live story to Firestore:', e);
     }
@@ -584,24 +656,52 @@ export async function createLiveStory(data: Omit<LiveStory, 'id'>): Promise<Live
 }
 
 /**
- * Update an existing live story
+ * Update an existing live story with optional repositioning (move to first or any other position)
  */
 export async function updateLiveStory(
   id: string,
-  updates: Partial<LiveStory>
+  updates: Partial<LiveStory>,
+  targetPosition?: number
 ): Promise<LiveStory | null> {
   const current = getLocalLiveStories();
-  const idx = current.findIndex((s) => s.id === id);
-  if (idx === -1) return null;
+  const currentIndex = current.findIndex((s) => s.id === id);
+  if (currentIndex === -1) return null;
 
-  const updatedStory = { ...current[idx], ...updates, id };
-  current[idx] = updatedStory;
-  setLocalLiveStories([...current]);
+  const now = new Date().toISOString();
+  const existingStory = current[currentIndex];
+  const updatedStory: LiveStory = {
+    ...existingStory,
+    ...updates,
+    id,
+    updatedAt: now,
+  };
+
+  let updatedList = [...current];
+
+  // If a targetPosition is specified, move the story to that position!
+  if (typeof targetPosition === 'number' && targetPosition >= 0) {
+    const safePos = Math.max(0, Math.min(targetPosition, updatedList.length - 1));
+    updatedList.splice(currentIndex, 1);
+    updatedList.splice(safePos, 0, updatedStory);
+  } else {
+    updatedList[currentIndex] = updatedStory;
+  }
+
+  // Re-index all stories: 0, 1, 2, ...
+  updatedList.forEach((s, idx) => {
+    s.order = idx;
+  });
+
+  setLocalLiveStories(updatedList);
 
   const db = getFirestoreDb();
   if (db) {
     try {
-      await updateDoc(doc(db, 'live_stories', id), updates);
+      await setDoc(doc(db, 'live_stories', id), updatedStory, { merge: true });
+      // If position changed, update order for affected stories in Firestore
+      for (const s of updatedList) {
+        updateDoc(doc(db, 'live_stories', s.id), { order: s.order }).catch(console.warn);
+      }
     } catch (e) {
       console.error('Failed updating live story in Firestore:', e);
     }
@@ -611,17 +711,113 @@ export async function updateLiveStory(
 }
 
 /**
+ * Move a live story to 'first', 'up', 'down', or 'last' position
+ */
+export async function moveLiveStory(
+  id: string,
+  direction: 'first' | 'up' | 'down' | 'last'
+): Promise<LiveStory[]> {
+  const current = getLocalLiveStories();
+  const index = current.findIndex((s) => s.id === id);
+  if (index === -1) return current;
+
+  let targetIndex = index;
+  if (direction === 'first') {
+    targetIndex = 0;
+  } else if (direction === 'last') {
+    targetIndex = current.length - 1;
+  } else if (direction === 'up') {
+    targetIndex = Math.max(0, index - 1);
+  } else if (direction === 'down') {
+    targetIndex = Math.min(current.length - 1, index + 1);
+  }
+
+  if (targetIndex === index) return current;
+
+  const updated = [...current];
+  const [removed] = updated.splice(index, 1);
+  updated.splice(targetIndex, 0, removed);
+
+  // Re-index
+  updated.forEach((s, idx) => {
+    s.order = idx;
+  });
+
+  setLocalLiveStories(updated);
+
+  const db = getFirestoreDb();
+  if (db) {
+    try {
+      for (const s of updated) {
+        updateDoc(doc(db, 'live_stories', s.id), { order: s.order }).catch(console.warn);
+      }
+    } catch (e) {
+      console.warn('Firestore sync order warning:', e);
+    }
+  }
+
+  return updated;
+}
+
+/**
+ * Reorder a story directly to a specified 0-based position
+ */
+export async function reorderLiveStoryToPosition(
+  id: string,
+  targetPosition: number
+): Promise<LiveStory[]> {
+  const current = getLocalLiveStories();
+  const index = current.findIndex((s) => s.id === id);
+  if (index === -1) return current;
+
+  const safePos = Math.max(0, Math.min(targetPosition, current.length - 1));
+  if (safePos === index) return current;
+
+  const updated = [...current];
+  const [removed] = updated.splice(index, 1);
+  updated.splice(safePos, 0, removed);
+
+  updated.forEach((s, idx) => {
+    s.order = idx;
+  });
+
+  setLocalLiveStories(updated);
+
+  const db = getFirestoreDb();
+  if (db) {
+    try {
+      for (const s of updated) {
+        updateDoc(doc(db, 'live_stories', s.id), { order: s.order }).catch(console.warn);
+      }
+    } catch (e) {
+      console.warn('Firestore sync order warning:', e);
+    }
+  }
+
+  return updated;
+}
+
+/**
  * Delete a live story
  */
 export async function deleteLiveStory(id: string): Promise<boolean> {
   const current = getLocalLiveStories();
   const filtered = current.filter((s) => s.id !== id);
+
+  // Re-index remaining stories
+  filtered.forEach((s, idx) => {
+    s.order = idx;
+  });
+
   setLocalLiveStories(filtered);
 
   const db = getFirestoreDb();
   if (db) {
     try {
       await deleteDoc(doc(db, 'live_stories', id));
+      for (const s of filtered) {
+        updateDoc(doc(db, 'live_stories', s.id), { order: s.order }).catch(console.warn);
+      }
     } catch (e) {
       console.error('Failed deleting live story from Firestore:', e);
     }
