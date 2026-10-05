@@ -18,12 +18,20 @@ const ARTICLES_STORAGE_KEY = 'iamquickagent_articles_v2';
 const AUTHORS_STORAGE_KEY = 'iamquickagent_authors_v2';
 const LIVE_STORIES_STORAGE_KEY = 'iamquickagent_live_stories_v2';
 
+// In-memory fallback for environments without window.localStorage
+let inMemoryArticles: Article[] = [...SEED_ARTICLES];
+let inMemoryAuthors: Author[] = [...SEED_AUTHORS];
+let inMemoryLiveStories: LiveStory[] = [...SEED_LIVE_STORIES];
+
 // Initialize local storage cache if not present
 function initializeLocalStorage(): { articles: Article[]; authors: Author[] } {
   let articles = SEED_ARTICLES;
   let authors = SEED_AUTHORS;
 
   try {
+    if (typeof localStorage === 'undefined') {
+      return { articles: inMemoryArticles, authors: inMemoryAuthors };
+    }
     const cachedArticles = localStorage.getItem(ARTICLES_STORAGE_KEY);
     if (cachedArticles) {
       const parsed = JSON.parse(cachedArticles);
@@ -90,17 +98,35 @@ function initializeLocalStorage(): { articles: Article[]; authors: Author[] } {
 
 export function getLocalArticles(): Article[] {
   try {
+    if (typeof localStorage === 'undefined') {
+      return [...inMemoryArticles].sort(
+        (a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime()
+      );
+    }
     const raw = localStorage.getItem(ARTICLES_STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.sort(
+          (a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime()
+        );
+      }
+    }
   } catch (e) {
     console.error('Failed reading local articles:', e);
   }
-  return SEED_ARTICLES;
+  return inMemoryArticles.length > 0 ? inMemoryArticles : SEED_ARTICLES;
 }
 
 export function setLocalArticles(articles: Article[]): void {
   try {
-    localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(articles));
+    const sorted = [...articles].sort(
+      (a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime()
+    );
+    inMemoryArticles = sorted;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(sorted));
+    }
   } catch (e) {
     console.error('Failed saving local articles:', e);
   }
@@ -108,17 +134,21 @@ export function setLocalArticles(articles: Article[]): void {
 
 export function getLocalAuthors(): Author[] {
   try {
+    if (typeof localStorage === 'undefined') return inMemoryAuthors;
     const raw = localStorage.getItem(AUTHORS_STORAGE_KEY);
     if (raw) return JSON.parse(raw);
   } catch (e) {
     console.error('Failed reading local authors:', e);
   }
-  return SEED_AUTHORS;
+  return inMemoryAuthors.length > 0 ? inMemoryAuthors : SEED_AUTHORS;
 }
 
 export function setLocalAuthors(authors: Author[]): void {
   try {
-    localStorage.setItem(AUTHORS_STORAGE_KEY, JSON.stringify(authors));
+    inMemoryAuthors = authors;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(AUTHORS_STORAGE_KEY, JSON.stringify(authors));
+    }
   } catch (e) {
     console.error('Failed saving local authors:', e);
   }
@@ -190,6 +220,29 @@ export async function getArticles(filter?: {
             }
           }
         }
+
+        // CRITICAL FIX: Merge freshly created/updated articles from local storage!
+        // When an article is created or published, Firestore query indexing latency
+        // can cause getDocs to temporarily omit the newly created doc.
+        // Merging local articles guarantees newly published news is NEVER lost or delayed on the front page.
+        const localList = getLocalArticles();
+        const firestoreIds = new Set(list.map((a) => a.id));
+        for (const localArt of localList) {
+          if (!firestoreIds.has(localArt.id)) {
+            list.unshift(localArt);
+            firestoreIds.add(localArt.id);
+          } else {
+            const fsIdx = list.findIndex((a) => a.id === localArt.id);
+            if (fsIdx !== -1 && localArt.updatedAt && list[fsIdx].updatedAt) {
+              if (new Date(localArt.updatedAt).getTime() > new Date(list[fsIdx].updatedAt).getTime()) {
+                list[fsIdx] = localArt;
+              }
+            }
+          }
+        }
+
+        // Strictly sort all articles by publication date descending (newest published first)
+        list.sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
         setLocalArticles(list); // Keep local backup synced
       } else {
         // If Firestore collection is empty, seed it with initial articles
@@ -206,6 +259,9 @@ export async function getArticles(filter?: {
   } else {
     list = getLocalArticles();
   }
+
+  // Strictly sort all articles by publication date descending (newest published first)
+  list.sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
 
   // Filter application
   return list.filter((item) => {
@@ -266,9 +322,10 @@ export async function createArticle(
     updatedAt: data.updatedAt || now,
   };
 
-  // 1. Save to LocalStorage immediately
+  // 1. Save to LocalStorage immediately with sort
   const current = getLocalArticles();
-  const updated = [newArticle, ...current];
+  const updated = [newArticle, ...current.filter((a) => a.id !== newArticle.id)];
+  updated.sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
   setLocalArticles(updated);
 
   // 2. Persist to Firestore if available
@@ -279,6 +336,12 @@ export async function createArticle(
     } catch (e) {
       console.error('Failed saving to Firestore:', e);
     }
+  }
+
+  // 3. Immediately broadcast update event so Front page and all components update in real-time
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('articles-updated', { detail: newArticle }));
+    window.dispatchEvent(new CustomEvent('news-data-changed'));
   }
 
   return newArticle;
@@ -304,6 +367,7 @@ export async function updateArticle(
   };
 
   current[idx] = updatedArticle;
+  current.sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
   setLocalArticles([...current]);
 
   // Firestore update
@@ -319,6 +383,11 @@ export async function updateArticle(
     } catch (e) {
       console.error('Failed updating Firestore doc:', e);
     }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('articles-updated', { detail: updatedArticle }));
+    window.dispatchEvent(new CustomEvent('news-data-changed'));
   }
 
   return updatedArticle;
@@ -339,6 +408,11 @@ export async function deleteArticle(id: string): Promise<boolean> {
     } catch (e) {
       console.error('Failed deleting from Firestore:', e);
     }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('articles-updated', { detail: { id, deleted: true } }));
+    window.dispatchEvent(new CustomEvent('news-data-changed'));
   }
 
   return true;
@@ -477,6 +551,9 @@ export function sortStoriesByOrder(stories: LiveStory[]): LiveStory[] {
 
 export function getLocalLiveStories(): LiveStory[] {
   try {
+    if (typeof localStorage === 'undefined') {
+      return sortStoriesByOrder(inMemoryLiveStories);
+    }
     const raw = localStorage.getItem(LIVE_STORIES_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
@@ -535,7 +612,10 @@ export function getLocalLiveStories(): LiveStory[] {
 export function setLocalLiveStories(stories: LiveStory[]): void {
   try {
     const sorted = sortStoriesByOrder(stories);
-    localStorage.setItem(LIVE_STORIES_STORAGE_KEY, JSON.stringify(sorted));
+    inMemoryLiveStories = sorted;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(LIVE_STORIES_STORAGE_KEY, JSON.stringify(sorted));
+    }
   } catch (e) {
     console.error('Failed saving local live stories:', e);
   }
@@ -576,6 +656,16 @@ export async function getLiveStories(): Promise<LiveStory[]> {
           if (!stories.some((s) => s.id === seedStory.id)) {
             stories.push(seedStory);
             setDoc(doc(db, 'live_stories', seedStory.id), seedStory).catch(console.warn);
+          }
+        }
+
+        // Merge any locally created live stories that haven't synced to Firestore yet
+        const localStories = getLocalLiveStories();
+        const firestoreIds = new Set(stories.map(s => s.id));
+        for (const localStory of localStories) {
+          if (!firestoreIds.has(localStory.id)) {
+            stories.push(localStory);
+            firestoreIds.add(localStory.id);
           }
         }
 
@@ -652,6 +742,11 @@ export async function createLiveStory(
     }
   }
 
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('live-stories-updated'));
+    window.dispatchEvent(new CustomEvent('news-data-changed'));
+  }
+
   return newStory;
 }
 
@@ -707,6 +802,11 @@ export async function updateLiveStory(
     }
   }
 
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('live-stories-updated'));
+    window.dispatchEvent(new CustomEvent('news-data-changed'));
+  }
+
   return updatedStory;
 }
 
@@ -756,6 +856,11 @@ export async function moveLiveStory(
     }
   }
 
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('live-stories-updated'));
+    window.dispatchEvent(new CustomEvent('news-data-changed'));
+  }
+
   return updated;
 }
 
@@ -794,6 +899,11 @@ export async function reorderLiveStoryToPosition(
     }
   }
 
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('live-stories-updated'));
+    window.dispatchEvent(new CustomEvent('news-data-changed'));
+  }
+
   return updated;
 }
 
@@ -821,6 +931,11 @@ export async function deleteLiveStory(id: string): Promise<boolean> {
     } catch (e) {
       console.error('Failed deleting live story from Firestore:', e);
     }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('live-stories-updated'));
+    window.dispatchEvent(new CustomEvent('news-data-changed'));
   }
 
   return true;

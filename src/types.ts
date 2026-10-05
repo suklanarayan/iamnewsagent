@@ -137,6 +137,25 @@ export interface TrendingSettings {
   items: TrendingItem[];
 }
 
+export type SocialPlatformType = 'x' | 'tv' | 'facebook' | 'youtube' | 'viral';
+
+export interface SocialTvTrendingItem {
+  id: string;
+  title: string;
+  headline?: string;
+  platform: SocialPlatformType;
+  sourceName: string;
+  hashtag: string;
+  approxTraffic?: string;
+  summary: string;
+  url: string;
+  imageUrl?: string;
+  category?: string;
+  isLiveBroadcast?: boolean;
+  publishedAt?: string;
+  viralScore?: number;
+}
+
 export interface OpinionPiece {
   id: string;
   authorName: string;

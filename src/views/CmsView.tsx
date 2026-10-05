@@ -30,6 +30,7 @@ import {
   Calendar,
   Megaphone,
   TrendingUp,
+  X,
 } from 'lucide-react';
 import type {
   Article,
@@ -66,6 +67,7 @@ import { getStatusMeta, PUBLICATION_STATUSES } from '../utils/statusUtils';
 import {
   resolveCuratedImageUrl,
   rewriteNewsWithGemini,
+  fetchNewsFromUrl,
   type RewrittenArticleResult,
 } from '../services/aiNewsService';
 
@@ -144,9 +146,9 @@ export const CmsView: React.FC<CmsViewProps> = ({
   const [readTimeMinutes, setReadTimeMinutes] = useState(4);
   const [content, setContent] = useState('');
 
-  // Publication Date & Timestamp Management
+  // Publication Date & Timestamp Management (defaults to true so newly edited/published news moves to front first)
   const [publishedAt, setPublishedAt] = useState<string>(() => new Date().toISOString());
-  const [autoBumpDateOnSave, setAutoBumpDateOnSave] = useState<boolean>(false);
+  const [autoBumpDateOnSave, setAutoBumpDateOnSave] = useState<boolean>(true);
 
   // Format ISO string to datetime-local input value (YYYY-MM-DDTHH:mm)
   const toDateTimeLocal = (isoString?: string) => {
@@ -190,7 +192,7 @@ export const CmsView: React.FC<CmsViewProps> = ({
       updatedAt: now,
     });
     await onRefreshArticles();
-    showToast(`Publication date for "${article.headline.slice(0, 28)}..." updated to Today (2026)!`);
+    showToast(`"${article.headline.slice(0, 30)}..." moved to front as lead story!`);
   };
 
   // Dedicated 'Key Takeaway' Summary inputs (bulleted list)
@@ -324,7 +326,7 @@ export const CmsView: React.FC<CmsViewProps> = ({
     setKeyTakeaways(data.keyTakeaways && data.keyTakeaways.length > 0 ? data.keyTakeaways : ['']);
     setContent(data.content);
     setPublishedAt(new Date().toISOString());
-    setAutoBumpDateOnSave(false);
+    setAutoBumpDateOnSave(true);
     setActiveTab('editor');
     showToast('AI draft loaded into editor! Review, tweak, and click Publish when ready.');
   };
@@ -360,9 +362,71 @@ export const CmsView: React.FC<CmsViewProps> = ({
     setActiveTab('manage');
   };
 
-  // AI Assist directly inside the Manual Editor
+  // 1. FULL Transformative AI Rewrite in Editor (100% original prose, new angle, non-verbatim)
+  const [isFullRewriting, setIsFullRewriting] = useState(false);
+  const handleFullAiRewriteInEditor = async () => {
+    if (!content.trim() && !headline.trim()) {
+      alert('Please enter or paste at least a draft headline, notes, or wire story text first.');
+      return;
+    }
+
+    setIsFullRewriting(true);
+    try {
+      showToast('Transforming draft into 100% original, copyright-clean news report with Gemini...');
+      const result = await rewriteNewsWithGemini({
+        headline,
+        rawText: content || headline,
+        sourceName: sourceName || 'Editorial Wire',
+        preferredCategory: category,
+      });
+
+      if (result.headline) {
+        setHeadline(result.headline);
+        setSlug(slugify(result.headline));
+        setIsSlugManuallyEdited(false);
+      }
+      if (result.deck) {
+        setDeck(result.deck);
+      }
+      if (result.content) {
+        setContent(result.content);
+      }
+      if (result.keyTakeaways && result.keyTakeaways.length > 0) {
+        setKeyTakeaways(result.keyTakeaways);
+      }
+      if (result.tags && result.tags.length > 0) {
+        setTagsInput(result.tags.join(', '));
+      }
+      if (result.readTimeMinutes) {
+        setReadTimeMinutes(result.readTimeMinutes);
+      }
+      if (result.category) {
+        setCategory(result.category as Category);
+      }
+      if (result.imageTopic) {
+        setFeaturedImage(resolveCuratedImageUrl(result.category, result.imageTopic));
+      }
+      if (result.imageCaption) {
+        setImageCaption(result.imageCaption);
+      }
+
+      // Bump timestamp so this newly rewritten story immediately leads in front
+      const now = new Date().toISOString();
+      setPublishedAt(now);
+      setAutoBumpDateOnSave(true);
+
+      showToast('✨ 100% Original Rewrite complete! Fresh headline, non-matching narrative prose, & Key Takeaways created.');
+    } catch (err) {
+      console.error(err);
+      showToast(`AI Rewrite error: ${(err as Error).message}`);
+    } finally {
+      setIsFullRewriting(false);
+    }
+  };
+
+  // 2. Auto-Takeaways & Polish Only (Preserves existing prose, adds Key Takeaways & SEO tags)
   const [isAiAssisting, setIsAiAssisting] = useState(false);
-  const handleAiAssistInEditor = async () => {
+  const handleAiTakeawaysOnlyInEditor = async () => {
     if (!content.trim() && !headline.trim()) {
       alert('Please enter at least a draft headline or story notes first.');
       return;
@@ -373,15 +437,11 @@ export const CmsView: React.FC<CmsViewProps> = ({
       showToast('Analyzing draft & generating Key Takeaways with Gemini...');
       const result = await rewriteNewsWithGemini({
         headline,
-        rawText: content,
+        rawText: content || headline,
         preferredCategory: category,
       });
 
-      if (!headline.trim()) {
-        setHeadline(result.headline);
-        setSlug(slugify(result.headline));
-      }
-      if (!deck.trim()) {
+      if (!deck.trim() && result.deck) {
         setDeck(result.deck);
       }
       if (result.keyTakeaways && result.keyTakeaways.length > 0) {
@@ -399,6 +459,51 @@ export const CmsView: React.FC<CmsViewProps> = ({
       showToast(`AI Assist error: ${(err as Error).message}`);
     } finally {
       setIsAiAssisting(false);
+    }
+  };
+
+  // 3. Quick Fetch & Rewrite from URL directly into Editor
+  const [showEditorUrlModal, setShowEditorUrlModal] = useState(false);
+  const [editorUrlInput, setEditorUrlInput] = useState('');
+  const [isEditorUrlFetching, setIsEditorUrlFetching] = useState(false);
+
+  const handleFetchUrlDirectlyIntoEditor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editorUrlInput.trim()) return;
+    setIsEditorUrlFetching(true);
+    try {
+      showToast('Fetching article from web source...');
+      const extracted = await fetchNewsFromUrl(editorUrlInput.trim());
+      showToast('Synthesizing into 100% original report with Gemini...');
+      const result = await rewriteNewsWithGemini({
+        headline: extracted.title,
+        rawText: extracted.text,
+        sourceName: 'Web Source',
+      });
+
+      setHeadline(result.headline);
+      setSlug(slugify(result.headline));
+      setIsSlugManuallyEdited(false);
+      setDeck(result.deck);
+      setContent(result.content);
+      setKeyTakeaways(result.keyTakeaways || []);
+      setTagsInput((result.tags || []).join(', '));
+      setCategory((result.category as Category) || 'World');
+      setFeaturedImage(resolveCuratedImageUrl(result.category, result.imageTopic));
+      setImageCaption(result.imageCaption || 'News wire context image.');
+      setSourceType('network');
+      setSourceName(extracted.title || 'Web Wire');
+      setSourceUrl(editorUrlInput.trim());
+      setPublishedAt(new Date().toISOString());
+      setAutoBumpDateOnSave(true);
+      setShowEditorUrlModal(false);
+      setEditorUrlInput('');
+      showToast('✨ Article fetched and completely rewritten into 100% original news report!');
+    } catch (err) {
+      console.error(err);
+      showToast(`Fetch failed: ${(err as Error).message}`);
+    } finally {
+      setIsEditorUrlFetching(false);
     }
   };
 
@@ -431,7 +536,7 @@ export const CmsView: React.FC<CmsViewProps> = ({
       artDate = artDate.replace('2025-', '2026-');
     }
     setPublishedAt(artDate);
-    setAutoBumpDateOnSave(false);
+    setAutoBumpDateOnSave(true);
     setActiveTab('editor');
   };
 
@@ -459,7 +564,7 @@ export const CmsView: React.FC<CmsViewProps> = ({
 
     try {
       const now = new Date().toISOString();
-      const finalPublishedAt = autoBumpDateOnSave ? now : (publishedAt || now);
+      const finalPublishedAt = !editingArticleId ? now : (autoBumpDateOnSave ? now : (publishedAt || now));
 
       if (editingArticleId) {
         await updateArticle(editingArticleId, {
@@ -1091,10 +1196,10 @@ export const CmsView: React.FC<CmsViewProps> = ({
                           <button
                             type="button"
                             onClick={() => handleQuickBumpDate(art)}
-                            className="text-[10px] text-amber-400 hover:text-amber-300 underline font-intel block mt-1 transition-colors text-left"
-                            title="Quickly set this article's date to Today (2026)"
+                            className="text-[10px] text-amber-400 hover:text-amber-300 font-bold font-intel block mt-1 transition-colors text-left flex items-center gap-1 cursor-pointer"
+                            title="Move this article to the very front as the lead Hero story on the homepage"
                           >
-                            ⚡ Set to Today (2026)
+                            <span>⚡ Bump to Front (Lead)</span>
                           </button>
                         </td>
                         <td className="p-3.5 text-right whitespace-nowrap space-x-2">
@@ -1136,38 +1241,101 @@ export const CmsView: React.FC<CmsViewProps> = ({
       {/* TAB 2: RICH ARTICLE EDITOR */}
       {activeTab === 'editor' && (
         <form onSubmit={handleSaveArticle} className="space-y-6">
-          {/* Quick Step Guide for Manual News Publishing */}
-          <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs font-intel space-y-2">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-amber-400 font-bold">
-                <FileText className="w-4 h-4" />
-                <span>How to Add & Publish News Manually:</span>
+          {/* AI Editorial Rewriter & Transformer Action Bar */}
+          <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-900 border border-amber-500/30 text-xs font-intel space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>Gemini AI Editorial Rewriter & News Engine</span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold uppercase">
+                    100% Original Prose Guarantee
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300">
+                  Transform raw wire copy, notes, or source URLs into an original dispatch. Synthesizes facts with fresh phrasing and subheadings to avoid 1:1 verbatim copyright matches.
+                </p>
               </div>
-              <button
-                type="button"
-                onClick={handleAiAssistInEditor}
-                disabled={isAiAssisting}
-                className="self-start sm:self-auto px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 font-bold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
-                title="Auto-generate Key Takeaways & polish headline from content"
-              >
-                <Sparkles className={`w-3.5 h-3.5 ${isAiAssisting ? 'animate-spin' : ''}`} />
-                <span>{isAiAssisting ? 'AI Analyzing...' : '⚡ AI Polish & Auto-Takeaways'}</span>
-              </button>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditorUrlModal(!showEditorUrlModal)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs flex items-center gap-1.5 transition-colors"
+                  title="Fetch and rewrite any web article directly into this editor"
+                >
+                  <Link className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Fetch from URL</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleAiTakeawaysOnlyInEditor}
+                  disabled={isAiAssisting || isFullRewriting}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  title="Generate 3-4 Key Takeaways & SEO tags while preserving your handwritten text"
+                >
+                  <Sparkles className={`w-3.5 h-3.5 text-amber-400 ${isAiAssisting ? 'animate-spin' : ''}`} />
+                  <span>{isAiAssisting ? 'Extracting...' : 'Takeaways & Tags Only'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleFullAiRewriteInEditor}
+                  disabled={isFullRewriting || isAiAssisting}
+                  className="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-amber-500/25 disabled:opacity-50"
+                  title="Completely rewrite headline, deck, and content into 100% original narrative prose"
+                >
+                  <Zap className={`w-3.5 h-3.5 fill-current ${isFullRewriting ? 'animate-spin' : ''}`} />
+                  <span>{isFullRewriting ? 'Rewriting with Gemini...' : '⚡ Full AI Rewrite (100% Original)'}</span>
+                </button>
+              </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-slate-300">
-              <div className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center flex-shrink-0 text-[11px]">1</span>
-                <span><strong>Write Headline & Deck:</strong> Enter news title, pick Category & Cover Image on the right.</span>
+
+            {/* Inline Quick Fetch from URL Bar if toggled */}
+            {showEditorUrlModal && (
+              <div className="pt-2 border-t border-slate-800 animate-in fade-in">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <div className="flex-1 relative">
+                    <input
+                      type="url"
+                      value={editorUrlInput}
+                      onChange={(e) => setEditorUrlInput(e.target.value)}
+                      placeholder="Paste news article link (e.g. https://www.thehindu.com/... or https://bbc.com/...)"
+                      className="w-full px-3.5 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 text-xs font-intel focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleFetchUrlDirectlyIntoEditor}
+                      disabled={isEditorUrlFetching || !editorUrlInput.trim()}
+                      className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all disabled:opacity-50"
+                    >
+                      {isEditorUrlFetching ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Fetching & Rewriting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-3.5 h-3.5 fill-current" />
+                          <span>Fetch & AI Rewrite into Editor</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowEditorUrlModal(false)}
+                      className="px-2.5 py-2 rounded-lg text-slate-400 hover:text-white"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center flex-shrink-0 text-[11px]">2</span>
-                <span><strong>Add Key Takeaways & Story:</strong> Provide 3 executive takeaway bullets & write in Markdown.</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center flex-shrink-0 text-[11px]">3</span>
-                <span><strong>Publish to Cloud:</strong> Click the amber button below to go live immediately on iamquickagent.com.</span>
-              </div>
-            </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

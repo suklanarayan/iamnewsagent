@@ -59,6 +59,25 @@ export default function App() {
     loadData();
   }, [loadData]);
 
+  // Real-time synchronization listeners: auto-refresh feed whenever news is published or modified
+  useEffect(() => {
+    const handleNewsChange = () => {
+      loadData();
+    };
+    window.addEventListener('articles-updated', handleNewsChange);
+    window.addEventListener('news-data-changed', handleNewsChange);
+    window.addEventListener('live-stories-updated', handleNewsChange);
+    window.addEventListener('storage', handleNewsChange);
+    window.addEventListener('focus', handleNewsChange);
+    return () => {
+      window.removeEventListener('articles-updated', handleNewsChange);
+      window.removeEventListener('news-data-changed', handleNewsChange);
+      window.removeEventListener('live-stories-updated', handleNewsChange);
+      window.removeEventListener('storage', handleNewsChange);
+      window.removeEventListener('focus', handleNewsChange);
+    };
+  }, [loadData]);
+
   // Handle URL deep linking on initial load and popstate
   useEffect(() => {
     const handleLocationChange = async () => {
@@ -129,6 +148,7 @@ export default function App() {
     setCurrentView('home');
     window.history.pushState({}, '', '/');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    loadData();
   };
 
   // Navigate Home
@@ -139,6 +159,7 @@ export default function App() {
     setCurrentView('home');
     window.history.pushState({}, '', '/');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    loadData();
   };
 
   // Open CMS

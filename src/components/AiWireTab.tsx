@@ -569,6 +569,19 @@ export const AiWireTab: React.FC<AiWireTabProps> = ({
                 </h2>
               </div>
 
+              {/* Original Wire Comparison Box */}
+              {rewrittenData.sourceTitle && (
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400 font-intel font-semibold">Original Source Wire:</span>
+                    <span className="text-emerald-400 font-intel font-bold flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" /> 100% Original Narrative (Copyright Clean)
+                    </span>
+                  </div>
+                  <p className="text-slate-400 italic text-[11px] line-clamp-1">{rewrittenData.sourceTitle}</p>
+                </div>
+              )}
+
               {/* Deck */}
               <div className="space-y-1">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">

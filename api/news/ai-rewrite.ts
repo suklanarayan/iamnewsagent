@@ -41,8 +41,25 @@ export default async function handler(req: any, res: any) {
   try {
     const ai = getGenAI();
 
-    const prompt = `You are a Senior Editor at "iamnewsagent.com" (tagline: "Real News. Broader Perspectives.").
+    const prompt = `You are a Senior Executive Editor at "iamnewsagent.com" (tagline: "Real News. Broader Perspectives.").
 Your task is to take this raw news wire story and rewrite it into a completely original, authoritative, balanced, and copyright-clean investigative news report.
+
+CRITICAL EDITORIAL & COPYRIGHT REQUIREMENTS:
+1. "headline": MANDATORY REWRITE. You MUST NOT use the source headline verbatim. Formulate a brand-new, compelling, and punchy headline (60-90 characters). Reframe the topic from an analytical perspective. Zero clickbait, high journalistic authority.
+2. 100% ORIGINAL PROSE: Do NOT copy verbatim sentences or paragraphs from the source. Synthesize the underlying facts into new, original sentences and narrative flow so that it does not match the source wire.
+3. "deck": A powerful 1-2 sentence executive subheadline summarizing why this matters right now and its broader implications.
+4. "category": Must be one of these exact values: "India", "World", "Business", "Technology", "Markets", "Science", "Health", "Sports", "Lifestyle", "Entertainment", "Explainers", "Opinion".
+5. "keyTakeaways": An array of 3 to 4 crisp, high-impact bullet points (each 15-25 words) detailing core findings, data figures, and strategic implications. Optimized for AI answer engines (AEO/GEO).
+6. "content": A comprehensive, well-structured news story formatted in clean Markdown (500 - 800 words):
+   - Include 2-3 informative ## Subheadings.
+   - Begin with a strong lede answering who, what, when, where, and why.
+   - Include context, historical background, global or domestic economic impact, and diverse stakeholder perspectives.
+   - Maintain objective, neutral, professional journalistic ethics.
+   - Formatted with paragraphs and occasional quotes or key points.
+7. "tags": An array of 4-6 specific search and SEO tags (e.g., ["Artificial Intelligence", "Regulatory Policy", "Global Trade"]).
+8. "readTimeMinutes": Estimated reading time as an integer (e.g., 3, 4, or 5).
+9. "imageTopic": A 2-4 word visual query for a stock cover photo (e.g., "satellite earth orbit", "financial trading floor", "solar farm field", "semiconductor cleanroom").
+10. "imageCaption": A professional journalistic photo caption crediting the conceptual context.
 
 Source Information:
 - Source Wire / Agency: ${sourceName || 'International News Wire'}
@@ -54,22 +71,6 @@ Raw Source Content:
 """
 ${(rawText || headline).substring(0, 7000)}
 """
-
-REQUIREMENTS FOR YOUR REWRITE:
-1. "headline": An impactful, clear, journalistic headline (60-90 characters). Never clickbait.
-2. "deck": A powerful 1-2 sentence executive subheadline summarizing why this matters right now.
-3. "category": Must be one of these exact values: "India", "World", "Business", "Technology", "Markets", "Science", "Health", "Sports", "Lifestyle", "Entertainment", "Explainers", "Opinion".
-4. "keyTakeaways": An array of 3 to 4 crisp, high-impact bullet points (each 15-25 words) detailing core findings, data figures, and strategic implications. Optimized for AI answer engines (AEO/GEO).
-5. "content": A comprehensive, well-structured news story formatted in clean Markdown (500 - 800 words):
-   - Include 2-3 informative ## Subheadings.
-   - Begin with a strong lede answering who, what, when, where, and why.
-   - Include context, historical background, global or domestic economic impact, and diverse stakeholder perspectives.
-   - Maintain objective, neutral, professional journalistic ethics.
-   - Formatted with paragraphs and occasional quotes or key points.
-6. "tags": An array of 4-6 specific search and SEO tags (e.g., ["Artificial Intelligence", "Regulatory Policy", "Global Trade"]).
-7. "readTimeMinutes": Estimated reading time as an integer (e.g., 3, 4, or 5).
-8. "imageTopic": A 2-4 word visual query for a stock cover photo (e.g., "satellite earth orbit", "financial trading floor", "solar farm field", "semiconductor cleanroom").
-9. "imageCaption": A professional journalistic photo caption crediting the conceptual context.
 
 Return ONLY a valid JSON object with these keys:
 {
@@ -84,9 +85,10 @@ Return ONLY a valid JSON object with these keys:
   "imageCaption": string
 }`;
 
-    const candidateModels = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
+    const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
     let outputText = '';
     let lastError: any = null;
+    let chosenModel = '';
 
     for (const model of candidateModels) {
       try {
@@ -98,7 +100,10 @@ Return ONLY a valid JSON object with these keys:
           },
         });
         outputText = response.text || '{}';
-        if (outputText) break;
+        if (outputText) {
+          chosenModel = model;
+          break;
+        }
       } catch (err) {
         lastError = err;
         console.warn(`Model ${model} attempt error, trying fallback...`, (err as Error)?.message);
@@ -113,7 +118,11 @@ Return ONLY a valid JSON object with these keys:
 
     return res.status(200).json({
       success: true,
-      data: parsed,
+      data: {
+        ...parsed,
+        isAiGenerated: true,
+        modelUsed: chosenModel || 'gemini-3.8-flash',
+      },
     });
   } catch (err) {
     console.error('Gemini rewrite error:', err);
