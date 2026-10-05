@@ -17,7 +17,7 @@ import { HomeView } from './views/HomeView';
 import { ArticleView } from './views/ArticleView';
 import { AuthorView } from './views/AuthorView';
 import { CmsView } from './views/CmsView';
-import { injectHomeSchema } from './utils/seo';
+import { injectHomeSchema, injectCategorySchema } from './utils/seo';
 
 export default function App() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -118,12 +118,17 @@ export default function App() {
     return () => window.removeEventListener('popstate', handleLocationChange);
   }, []);
 
-  // Set home schema when on home
+  // Set home / category SEO schema and OpenGraph based on active state
   useEffect(() => {
     if (currentView === 'home') {
-      injectHomeSchema();
+      if (activeCategory && activeCategory !== 'all') {
+        const count = articles.filter((a) => a.category === activeCategory).length;
+        injectCategorySchema(activeCategory, count);
+      } else {
+        injectHomeSchema();
+      }
     }
-  }, [currentView]);
+  }, [currentView, activeCategory, articles]);
 
   // Navigate to Article
   const handleSelectArticle = (article: Article) => {

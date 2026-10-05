@@ -1,0 +1,23 @@
+# iamquickagent.com
+
+> High-performance rapid digital news and intelligence publishing platform delivering real-time geopolitical, tech, semiconductor, cyber, and macroeconomic briefings with structured executive key takeaways.
+
+## Key Sections
+- [Home](https://iamquickagent.com/): Real-time breaking dispatches, lead intelligence hero stories, and modern trending feeds.
+- [India](https://iamquickagent.com/?category=India): Indian macroeconomic, infrastructure, governance, and policy reports.
+- [World](https://iamquickagent.com/?category=World): Geopolitics, international summits, and global security.
+- [Technology](https://iamquickagent.com/?category=Technology): AI, semiconductors, quantum compute, and enterprise software.
+- [Markets](https://iamquickagent.com/?category=Markets): Capital flows, equity markets, energy commodity prices, and central banks.
+- [Explainers](https://iamquickagent.com/?category=Explainers): In-depth analytical breakdowns and historical context.
+
+## Structured Format
+Every article on iamquickagent.com includes:
+- Concise, objective narrative prose
+- Structured 3-bullet Executive Key Takeaways optimized for Answer Engines and AI Overviews
+- Machine-verifiable Schema.org NewsArticle structured data with SpeakableSpecification
+- Curated editorial context and source provenance
+
+## Feeds & Sitemaps
+- [XML Sitemap](https://iamquickagent.com/sitemap.xml)
+- [Google News Sitemap](https://iamquickagent.com/news-sitemap.xml)
+- [RSS Feed](https://iamquickagent.com/rss.xml)

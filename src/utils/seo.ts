@@ -3,146 +3,307 @@ import type { Article, Author } from '../types';
 const NEWS_SCHEMA_ID = 'iamquickagent-news-schema';
 const BREADCRUMB_SCHEMA_ID = 'iamquickagent-breadcrumb-schema';
 const WEBSITE_SCHEMA_ID = 'iamquickagent-website-schema';
+const KNOWLEDGE_GRAPH_SCHEMA_ID = 'iamquickagent-knowledge-graph-schema';
+const CATEGORY_SCHEMA_ID = 'iamquickagent-category-schema';
 
+const DEFAULT_BASE_URL = 'https://iamquickagent.com';
+
+// Organization Knowledge Graph Schema (Unified Entity Reference)
+const KNOWLEDGE_GRAPH_ORGANIZATION = {
+  '@context': 'https://schema.org',
+  '@type': 'NewsMediaOrganization',
+  '@id': `${DEFAULT_BASE_URL}/#organization`,
+  'name': 'iamquickagent.com',
+  'alternateName': ['iamquickagent', 'iamnewsagent', 'iamnewsagent.com'],
+  'url': DEFAULT_BASE_URL,
+  'logo': {
+    '@type': 'ImageObject',
+    '@id': `${DEFAULT_BASE_URL}/#logo`,
+    'url': 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&h=120&q=85',
+    'caption': 'iamquickagent.com Logo',
+    'width': 600,
+    'height': 120,
+  },
+  'image': 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&h=630&q=85',
+  'sameAs': [
+    'https://twitter.com/iamquickagent',
+    'https://facebook.com/iamquickagent',
+    'https://linkedin.com/company/iamquickagent',
+    'https://youtube.com/@iamquickagent',
+  ],
+  'description': 'High-performance rapid digital news and intelligence publishing platform delivering real-time geopolitical, tech, semiconductor, cyber, and macroeconomic briefings with structured executive key takeaways.',
+  'foundingDate': '2024-03-01',
+  'founder': {
+    '@type': 'Person',
+    'name': 'Narayan Shukla',
+    'jobTitle': 'Founder & Lead Intelligence Analyst',
+    'url': `${DEFAULT_BASE_URL}/author/author-narayan-shukla`,
+  },
+  'knowsAbout': [
+    'Geopolitics',
+    'Artificial Intelligence',
+    'Semiconductor Manufacturing',
+    'Digital Public Infrastructure',
+    'Macroeconomics',
+    'Financial Markets',
+    'Cyber Security',
+    'Defense Modernization',
+  ],
+  'publishingPrinciples': `${DEFAULT_BASE_URL}/editorial-standards`,
+  'ethicsPolicy': `${DEFAULT_BASE_URL}/editorial-standards#ethics`,
+  'correctionsPolicy': `${DEFAULT_BASE_URL}/editorial-standards#corrections`,
+  'diversityPolicy': `${DEFAULT_BASE_URL}/editorial-standards#diversity`,
+  'masthead': `${DEFAULT_BASE_URL}/editorial-standards#team`,
+  'contactPoint': {
+    '@type': 'ContactPoint',
+    'contactType': 'Newsroom Editorial Desk',
+    'email': 'SUKLA.NARAYAN007@gmail.com',
+    'availableLanguage': ['English', 'Hindi'],
+  },
+};
+
+/**
+ * Injects complete NewsArticle and Breadcrumb Schema for an article view,
+ * optimized for Google News, Google Search, and AI Overviews (AEO).
+ */
 export function injectArticleSchema(article: Article, author: Author | null, currentUrl: string): void {
-  // 1. Remove previous dynamic scripts if present
   removeArticleSchema();
 
-  // 2. Build NewsArticle Schema
+  const canonicalUrl = currentUrl.startsWith('http') ? currentUrl : `${DEFAULT_BASE_URL}${currentUrl}`;
+  const wordCount = article.content ? article.content.split(/\s+/).filter(Boolean).length : 500;
+  const publishedDate = article.publishedAt || new Date().toISOString();
+  const modifiedDate = article.updatedAt || publishedDate;
+
+  // 1. NewsArticle Schema with AEO Speakable Specification
   const newsArticleSchema = {
     '@context': 'https://schema.org',
     '@type': 'NewsArticle',
+    '@id': `${canonicalUrl}#article`,
+    'isPartOf': {
+      '@type': 'WebSite',
+      '@id': `${DEFAULT_BASE_URL}/#website`,
+      'name': 'iamquickagent.com',
+      'url': DEFAULT_BASE_URL,
+    },
     'mainEntityOfPage': {
       '@type': 'WebPage',
-      '@id': currentUrl,
+      '@id': canonicalUrl,
     },
     'headline': article.headline,
-    'description': article.deck || article.keyTakeaways[0] || '',
-    'image': [article.featuredImage],
-    'datePublished': article.publishedAt,
-    'dateModified': article.updatedAt || article.publishedAt,
+    'alternativeHeadline': article.deck || article.keyTakeaways?.[0] || article.headline,
+    'description': article.deck || article.keyTakeaways?.[0] || '',
+    'image': [
+      article.featuredImage || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&h=630&q=85',
+    ],
+    'datePublished': publishedDate,
+    'dateModified': modifiedDate,
     'author': [
       {
         '@type': 'Person',
+        '@id': author ? `${DEFAULT_BASE_URL}/author/${author.id}` : `${DEFAULT_BASE_URL}/#desk`,
         'name': author ? author.name : 'iamquickagent Intelligence Desk',
         'jobTitle': author ? author.role : 'Staff Intelligence Analyst',
-        'url': author ? `https://iamquickagent.com/author/${author.id}` : 'https://iamquickagent.com/editorial',
+        'url': author ? `${DEFAULT_BASE_URL}/author/${author.id}` : `${DEFAULT_BASE_URL}/editorial`,
+        ...(author?.twitter ? { 'sameAs': `https://twitter.com/${author.twitter.replace('@', '')}` } : {}),
       },
     ],
-    'publisher': {
-      '@type': 'NewsMediaOrganization',
-      'name': 'iamquickagent.com',
-      'url': 'https://iamquickagent.com',
-      'logo': {
-        '@type': 'ImageObject',
-        'url': 'https://iamquickagent.com/assets/logo.png',
-        'width': 600,
-        'height': 60,
-      },
-      'publishingPrinciples': 'https://iamquickagent.com/editorial-standards',
-      'ethicsPolicy': 'https://iamquickagent.com/editorial-standards#ethics',
-    },
+    'publisher': KNOWLEDGE_GRAPH_ORGANIZATION,
     'articleSection': article.category,
-    'keywords': article.tags.join(', '),
-    'abstract': article.keyTakeaways.join(' \u2022 '),
-    'articleBody': article.content.replace(/[#*`_]/g, ''),
+    'keywords': article.tags ? article.tags.join(', ') : article.category,
+    'wordCount': wordCount,
+    'abstract': article.keyTakeaways ? article.keyTakeaways.join(' • ') : article.deck,
+    'articleBody': article.content ? article.content.replace(/[#*`_]/g, '') : '',
     'inLanguage': 'en-US',
-    // Speakable property specifically crafted for AEO / Voice search / Generative AI citations
+    'isAccessibleForFree': 'True',
+    // AI Overview / Answer Engine Optimization (AEO) Speakable Tag
     'speakable': {
       '@type': 'SpeakableSpecification',
-      'cssSelector': ['[data-aeo-summary="true"]', 'h1', '.deck-summary'],
+      'cssSelector': [
+        '[data-aeo-summary="true"]',
+        '[data-aeo-takeaways="true"]',
+        'h1',
+        '.deck-summary',
+      ],
     },
+    'about': (article.tags || []).map((tag) => ({
+      '@type': 'Thing',
+      'name': tag,
+    })),
   };
 
-  // 3. Build BreadcrumbList Schema
+  // 2. BreadcrumbList Schema
   const breadcrumbSchema = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
+    '@id': `${canonicalUrl}#breadcrumb`,
     'itemListElement': [
       {
         '@type': 'ListItem',
         'position': 1,
         'name': 'Home',
-        'item': 'https://iamquickagent.com/',
+        'item': `${DEFAULT_BASE_URL}/`,
       },
       {
         '@type': 'ListItem',
         'position': 2,
         'name': article.category,
-        'item': `https://iamquickagent.com/?category=${encodeURIComponent(article.category)}`,
+        'item': `${DEFAULT_BASE_URL}/?category=${encodeURIComponent(article.category)}`,
       },
       {
         '@type': 'ListItem',
         'position': 3,
         'name': article.headline,
-        'item': currentUrl,
+        'item': canonicalUrl,
       },
     ],
   };
 
-  // 4. Inject into document.head
-  const scriptNews = document.createElement('script');
-  scriptNews.id = NEWS_SCHEMA_ID;
-  scriptNews.type = 'application/ld+json';
-  scriptNews.text = JSON.stringify(newsArticleSchema, null, 2);
-  document.head.appendChild(scriptNews);
+  // Inject Schemas into Document Head
+  appendJsonLd(NEWS_SCHEMA_ID, newsArticleSchema);
+  appendJsonLd(BREADCRUMB_SCHEMA_ID, breadcrumbSchema);
 
-  const scriptBreadcrumb = document.createElement('script');
-  scriptBreadcrumb.id = BREADCRUMB_SCHEMA_ID;
-  scriptBreadcrumb.type = 'application/ld+json';
-  scriptBreadcrumb.text = JSON.stringify(breadcrumbSchema, null, 2);
-  document.head.appendChild(scriptBreadcrumb);
-
-  // 5. Update standard document head meta tags
+  // 3. Update Document Title and Meta Tags
   document.title = `${article.headline} | iamquickagent.com`;
-  updateMeta('description', article.deck || article.keyTakeaways[0]);
-  updateMeta('og:title', article.headline);
-  updateMeta('og:description', article.deck || article.keyTakeaways[0]);
-  updateMeta('og:image', article.featuredImage);
+  updateMeta('description', article.deck || article.keyTakeaways?.[0] || article.headline);
+  updateMeta('news_keywords', article.tags ? article.tags.join(', ') : article.category);
+  updateMeta('keywords', article.tags ? article.tags.join(', ') : article.category);
+  updateMeta('author', author ? author.name : 'iamquickagent.com');
+
+  // OpenGraph Tags
   updateMeta('og:type', 'article');
+  updateMeta('og:title', `${article.headline} | iamquickagent.com`);
+  updateMeta('og:description', article.deck || article.keyTakeaways?.[0] || article.headline);
+  updateMeta('og:image', article.featuredImage);
+  updateMeta('og:url', canonicalUrl);
+  updateMeta('article:published_time', publishedDate);
+  updateMeta('article:modified_time', modifiedDate);
+  updateMeta('article:section', article.category);
+  if (author) updateMeta('article:author', author.name);
+  if (article.tags && article.tags.length > 0) {
+    updateMeta('article:tag', article.tags.join(', '));
+  }
+
+  // Twitter Tags
+  updateMeta('twitter:card', 'summary_large_image');
   updateMeta('twitter:title', article.headline);
-  updateMeta('twitter:description', article.deck || article.keyTakeaways[0]);
+  updateMeta('twitter:description', article.deck || article.keyTakeaways?.[0] || article.headline);
   updateMeta('twitter:image', article.featuredImage);
+
+  // Canonical Link
+  updateCanonical(canonicalUrl);
 }
 
+/**
+ * Injects Knowledge Graph and WebSite Schema for Homepage,
+ * supporting Google Sitelinks Searchbox and Knowledge Panels.
+ */
 export function injectHomeSchema(): void {
   removeArticleSchema();
 
   const websiteSchema = {
     '@context': 'https://schema.org',
-    '@type': 'NewsMediaOrganization',
+    '@type': 'WebSite',
+    '@id': `${DEFAULT_BASE_URL}/#website`,
+    'url': DEFAULT_BASE_URL,
     'name': 'iamquickagent.com',
-    'url': 'https://iamquickagent.com',
-    'description': 'Rapid digital news and intelligence publishing platform delivering real-time geopolitical, tech, cyber, and macro briefings.',
+    'alternateName': 'iamnewsagent',
+    'description': 'High-performance rapid digital news and intelligence publishing platform delivering real-time geopolitical, tech, cyber, and macro briefings.',
+    'publisher': {
+      '@id': `${DEFAULT_BASE_URL}/#organization`,
+    },
     'potentialAction': {
       '@type': 'SearchAction',
-      'target': 'https://iamquickagent.com/?search={search_term_string}',
+      'target': {
+        '@type': 'EntryPoint',
+        'urlTemplate': `${DEFAULT_BASE_URL}/?search={search_term_string}`,
+      },
       'query-input': 'required name=search_term_string',
     },
+    'inLanguage': 'en-US',
   };
 
-  const existing = document.getElementById(WEBSITE_SCHEMA_ID);
-  if (!existing) {
-    const script = document.createElement('script');
-    script.id = WEBSITE_SCHEMA_ID;
-    script.type = 'application/ld+json';
-    script.text = JSON.stringify(websiteSchema, null, 2);
-    document.head.appendChild(script);
-  }
+  appendJsonLd(WEBSITE_SCHEMA_ID, websiteSchema);
+  appendJsonLd(KNOWLEDGE_GRAPH_SCHEMA_ID, KNOWLEDGE_GRAPH_ORGANIZATION);
 
   document.title = 'iamquickagent.com - Rapid Digital News & Intelligence Agent';
-  updateMeta('description', 'High-performance rapid digital news and intelligence publishing platform with key takeaway briefs, breaking dispatches, and deep analysis.');
+  updateMeta(
+    'description',
+    'High-performance rapid digital news and intelligence publishing platform with key takeaway briefs, breaking dispatches, and deep analysis.'
+  );
+  updateMeta('og:type', 'website');
+  updateMeta('og:title', 'iamquickagent.com - Rapid Digital News & Intelligence Agent');
+  updateMeta(
+    'og:description',
+    'High-performance rapid digital news and intelligence publishing platform with key takeaway briefs, breaking dispatches, and deep analysis.'
+  );
+  updateMeta('og:url', `${DEFAULT_BASE_URL}/`);
+  updateCanonical(`${DEFAULT_BASE_URL}/`);
 }
 
+/**
+ * Injects Category CollectionPage Schema
+ */
+export function injectCategorySchema(category: string, count: number): void {
+  removeArticleSchema();
+
+  const canonicalUrl = `${DEFAULT_BASE_URL}/?category=${encodeURIComponent(category)}`;
+  const categorySchema = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    '@id': `${canonicalUrl}#collection`,
+    'name': `${category} Intelligence Briefs & News | iamquickagent.com`,
+    'description': `Latest verified dispatches, deep-dive explainers, and real-time coverage on ${category}.`,
+    'url': canonicalUrl,
+    'isPartOf': {
+      '@id': `${DEFAULT_BASE_URL}/#website`,
+    },
+    'about': {
+      '@type': 'Thing',
+      'name': category,
+    },
+    'numberOfItems': count,
+  };
+
+  appendJsonLd(CATEGORY_SCHEMA_ID, categorySchema);
+
+  document.title = `${category} News & Intelligence Briefs | iamquickagent.com`;
+  updateMeta('description', `Read the latest verified news dispatches, executive takeaways, and breaking coverage on ${category} from iamquickagent.com.`);
+  updateMeta('og:title', `${category} News & Intelligence Briefs | iamquickagent.com`);
+  updateMeta('og:description', `Read verified news dispatches, executive takeaways, and breaking coverage on ${category}.`);
+  updateMeta('og:url', canonicalUrl);
+  updateCanonical(canonicalUrl);
+}
+
+/**
+ * Removes temporary schemas when navigating away
+ */
 export function removeArticleSchema(): void {
-  const s1 = document.getElementById(NEWS_SCHEMA_ID);
-  if (s1) s1.remove();
-
-  const s2 = document.getElementById(BREADCRUMB_SCHEMA_ID);
-  if (s2) s2.remove();
+  const ids = [NEWS_SCHEMA_ID, BREADCRUMB_SCHEMA_ID, CATEGORY_SCHEMA_ID];
+  ids.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  });
 }
 
+/**
+ * Safely appends or updates a JSON-LD script tag in document.head
+ */
+function appendJsonLd(id: string, schema: object): void {
+  let script = document.getElementById(id) as HTMLScriptElement;
+  if (!script) {
+    script = document.createElement('script');
+    script.id = id;
+    script.type = 'application/ld+json';
+    document.head.appendChild(script);
+  }
+  script.text = JSON.stringify(schema, null, 2);
+}
+
+/**
+ * Updates or creates meta tags (supporting both 'name' and 'property' attributes)
+ */
 function updateMeta(nameOrProp: string, content: string): void {
+  if (!content) return;
   let el = document.querySelector(`meta[name="${nameOrProp}"]`) as HTMLMetaElement;
   if (!el) {
     el = document.querySelector(`meta[property="${nameOrProp}"]`) as HTMLMetaElement;
@@ -159,6 +320,22 @@ function updateMeta(nameOrProp: string, content: string): void {
   el.setAttribute('content', content);
 }
 
+/**
+ * Updates or creates the canonical link tag in document.head
+ */
+export function updateCanonical(url: string): void {
+  let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+  if (!link) {
+    link = document.createElement('link');
+    link.setAttribute('rel', 'canonical');
+    document.head.appendChild(link);
+  }
+  link.setAttribute('href', url);
+}
+
+/**
+ * Generates clean, URL-safe slugs
+ */
 export function slugify(text: string): string {
   return text
     .toString()

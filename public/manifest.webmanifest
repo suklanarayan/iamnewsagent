@@ -1,0 +1,11 @@
+{
+  "name": "iamquickagent.com - Rapid Digital News & Intelligence",
+  "short_name": "iamquickagent",
+  "description": "High-performance rapid digital news and intelligence publishing platform with key takeaway briefs, breaking dispatches, and deep analysis.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#b91c1c",
+  "categories": ["news", "magazines", "business", "technology"]
+}

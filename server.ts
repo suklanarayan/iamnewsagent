@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
+import { SEED_ARTICLES, SEED_AUTHORS } from './src/data/seedData';
 
 const app = express();
 const PORT = 3000;
@@ -936,6 +937,248 @@ Return ONLY valid JSON matching this schema:
       error: (err as Error).message || 'Failed generating live story points',
     });
   }
+});
+
+// Helper: Escape XML entities
+function escapeXml(unsafe: string): string {
+  if (!unsafe) return '';
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+// ==========================================
+// ADVANCED SEO & CRAWLER / AI LLM ENGINE SUITE
+// ==========================================
+
+// 1. DYNAMIC ROBOTS.TXT
+app.get('/robots.txt', (_req, res) => {
+  const robots = `# robots.txt for iamquickagent.com / iamnewsagent
+User-agent: *
+Allow: /
+Disallow: /cms
+Disallow: /api/
+
+# AI Search Agents & LLM Web Crawlers
+# Explicitly permitted for AI Overviews, Answer Engine Optimization (AEO), and LLM knowledge citation
+User-agent: Google-Extended
+Allow: /
+
+User-agent: GoogleOther
+Allow: /
+
+User-agent: GoogleOther-Image
+Allow: /
+
+User-agent: GoogleOther-Video
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+# Canonical Sitemaps
+Sitemap: https://iamquickagent.com/sitemap.xml
+Sitemap: https://iamquickagent.com/news-sitemap.xml
+`;
+  res.header('Content-Type', 'text/plain; charset=utf-8');
+  res.send(robots);
+});
+
+// 2. STANDARD XML SITEMAP (INDEXES HOMEPAGE, CATEGORIES, AUTHORS & ALL ARTICLES)
+app.get('/sitemap.xml', (_req, res) => {
+  const baseUrl = 'https://iamquickagent.com';
+  const categories = [
+    'India', 'World', 'Business', 'Technology', 'Markets',
+    'Science', 'Health', 'Sports', 'Lifestyle', 'Entertainment', 'Explainers', 'Opinion'
+  ];
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
+
+  // Homepage
+  xml += `  <url>\n`;
+  xml += `    <loc>${baseUrl}/</loc>\n`;
+  xml += `    <lastmod>${new Date().toISOString()}</lastmod>\n`;
+  xml += `    <changefreq>always</changefreq>\n`;
+  xml += `    <priority>1.0</priority>\n`;
+  xml += `  </url>\n`;
+
+  // Categories
+  for (const cat of categories) {
+    xml += `  <url>\n`;
+    xml += `    <loc>${baseUrl}/?category=${encodeURIComponent(cat)}</loc>\n`;
+    xml += `    <changefreq>hourly</changefreq>\n`;
+    xml += `    <priority>0.8</priority>\n`;
+    xml += `  </url>\n`;
+  }
+
+  // Authors
+  for (const author of SEED_AUTHORS) {
+    xml += `  <url>\n`;
+    xml += `    <loc>${baseUrl}/author/${encodeURIComponent(author.id)}</loc>\n`;
+    xml += `    <changefreq>weekly</changefreq>\n`;
+    xml += `    <priority>0.6</priority>\n`;
+    xml += `  </url>\n`;
+  }
+
+  // Articles
+  for (const article of SEED_ARTICLES) {
+    const lastMod = article.updatedAt || article.publishedAt || new Date().toISOString();
+    xml += `  <url>\n`;
+    xml += `    <loc>${baseUrl}/article/${encodeURIComponent(article.slug)}</loc>\n`;
+    xml += `    <lastmod>${lastMod}</lastmod>\n`;
+    xml += `    <changefreq>daily</changefreq>\n`;
+    xml += `    <priority>0.9</priority>\n`;
+    if (article.featuredImage) {
+      xml += `    <image:image>\n`;
+      xml += `      <image:loc>${escapeXml(article.featuredImage)}</image:loc>\n`;
+      xml += `      <image:title>${escapeXml(article.headline)}</image:title>\n`;
+      xml += `    </image:image>\n`;
+    }
+    xml += `  </url>\n`;
+  }
+
+  xml += `</urlset>`;
+
+  res.header('Content-Type', 'application/xml; charset=utf-8');
+  res.send(xml);
+});
+
+// 3. GOOGLE NEWS SITEMAP (NEWS SPECIFICATION WITH PUBLICATION & KEYWORDS)
+app.get('/news-sitemap.xml', (_req, res) => {
+  const baseUrl = 'https://iamquickagent.com';
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n`;
+
+  for (const article of SEED_ARTICLES) {
+    const pubDate = article.publishedAt || new Date().toISOString();
+    xml += `  <url>\n`;
+    xml += `    <loc>${baseUrl}/article/${encodeURIComponent(article.slug)}</loc>\n`;
+    xml += `    <news:news>\n`;
+    xml += `      <news:publication>\n`;
+    xml += `        <news:name>iamquickagent.com</news:name>\n`;
+    xml += `        <news:language>en</news:language>\n`;
+    xml += `      </news:publication>\n`;
+    xml += `      <news:publication_date>${pubDate}</news:publication_date>\n`;
+    xml += `      <news:title>${escapeXml(article.headline)}</news:title>\n`;
+    if (article.tags && article.tags.length > 0) {
+      xml += `      <news:keywords>${escapeXml(article.tags.join(', '))}</news:keywords>\n`;
+    }
+    xml += `    </news:news>\n`;
+    xml += `  </url>\n`;
+  }
+
+  xml += `</urlset>`;
+
+  res.header('Content-Type', 'application/xml; charset=utf-8');
+  res.send(xml);
+});
+
+// 4. RSS 2.0 & ATOM SYNDICATION FEEDS
+const handleRssFeed = (_req: express.Request, res: express.Response) => {
+  const baseUrl = 'https://iamquickagent.com';
+  const now = new Date().toUTCString();
+
+  let rss = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  rss += `<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">\n`;
+  rss += `  <channel>\n`;
+  rss += `    <title>iamquickagent.com - Rapid Digital News &amp; Intelligence Agent</title>\n`;
+  rss += `    <link>${baseUrl}</link>\n`;
+  rss += `    <description>High-performance rapid digital news and intelligence publishing platform with key takeaway briefs, breaking dispatches, and deep analysis.</description>\n`;
+  rss += `    <language>en-US</language>\n`;
+  rss += `    <lastBuildDate>${now}</lastBuildDate>\n`;
+  rss += `    <atom:link href="${baseUrl}/rss.xml" rel="self" type="application/rss+xml"/>\n`;
+
+  for (const article of SEED_ARTICLES) {
+    const pubDate = new Date(article.publishedAt || Date.now()).toUTCString();
+    const articleUrl = `${baseUrl}/article/${article.slug}`;
+    const authorObj = SEED_AUTHORS.find(a => a.id === article.authorId);
+    const authorName = authorObj ? authorObj.name : 'iamquickagent Intelligence Desk';
+
+    rss += `    <item>\n`;
+    rss += `      <title>${escapeXml(article.headline)}</title>\n`;
+    rss += `      <link>${articleUrl}</link>\n`;
+    rss += `      <guid isPermaLink="true">${articleUrl}</guid>\n`;
+    rss += `      <pubDate>${pubDate}</pubDate>\n`;
+    rss += `      <dc:creator>${escapeXml(authorName)}</dc:creator>\n`;
+    rss += `      <category>${escapeXml(article.category)}</category>\n`;
+    rss += `      <description>${escapeXml(article.deck || article.keyTakeaways?.[0] || article.headline)}</description>\n`;
+    if (article.featuredImage) {
+      rss += `      <enclosure url="${escapeXml(article.featuredImage)}" type="image/jpeg" length="102400" />\n`;
+    }
+    rss += `    </item>\n`;
+  }
+
+  rss += `  </channel>\n`;
+  rss += `</rss>`;
+
+  res.header('Content-Type', 'application/rss+xml; charset=utf-8');
+  res.send(rss);
+};
+
+app.get('/rss.xml', handleRssFeed);
+app.get('/feed.xml', handleRssFeed);
+
+// 5. LLMS.TXT (AI OVERVIEW & LARGE LANGUAGE MODEL CITATION DIGEST)
+app.get(['/llms.txt', '/llms-full.txt'], (_req, res) => {
+  let doc = `# iamquickagent.com\n\n`;
+  doc += `> Rapid digital news and intelligence publishing platform delivering real-time geopolitical, tech, semiconductor, cyber, and macroeconomic briefings with structured executive key takeaways.\n\n`;
+  doc += `## Core Identity & Verification\n`;
+  doc += `- Website: https://iamquickagent.com\n`;
+  doc += `- Editorial Standards: Objective, non-partisan intelligence reporting verified across global wires.\n`;
+  doc += `- Publisher: iamquickagent.com Intelligence Group\n`;
+  doc += `- Google Site Verification: YFePTkFdMD9NtIIhg0fvDinPB8VPmTbH3Ahozp_tIqU\n\n`;
+  doc += `## Coverage Domains\n`;
+  doc += `- India & South Asia: Macroeconomics, digital public infrastructure, industrial policy.\n`;
+  doc += `- World & Geopolitics: Multilateral summits (BRICS, G20), security treaties, sovereign trade.\n`;
+  doc += `- Technology & AI: Advanced silicon fabrication, frontier AI models, quantum research.\n`;
+  doc += `- Markets & Commodities: Capital inflows, energy transition, equity benchmarks.\n\n`;
+  doc += `## Latest Published Dispatches\n\n`;
+
+  for (const article of SEED_ARTICLES) {
+    doc += `### [${article.headline}](https://iamquickagent.com/article/${article.slug})\n`;
+    doc += `- Category: ${article.category}\n`;
+    doc += `- Published: ${article.publishedAt}\n`;
+    if (article.deck) doc += `- Executive Summary: ${article.deck}\n`;
+    if (article.keyTakeaways && article.keyTakeaways.length > 0) {
+      doc += `- Key Intelligence Points:\n`;
+      article.keyTakeaways.forEach(pt => {
+        doc += `  * ${pt}\n`;
+      });
+    }
+    doc += `\n`;
+  }
+
+  res.header('Content-Type', 'text/plain; charset=utf-8');
+  res.send(doc);
 });
 
 // Start server

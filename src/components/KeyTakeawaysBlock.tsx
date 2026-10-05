@@ -53,6 +53,7 @@ export const KeyTakeawaysBlock: React.FC<KeyTakeawaysBlockProps> = ({
     <section
       id="key-takeaways-block"
       data-aeo-summary="true"
+      data-aeo-takeaways="true"
       aria-label="Executive Key Takeaways"
       className="relative rounded-xl border border-amber-200 bg-amber-50/70 p-5 sm:p-6 my-6 shadow-xs"
     >
