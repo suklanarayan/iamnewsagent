@@ -38,6 +38,7 @@ interface AiWireTabProps {
 
 const WIRE_TOPICS = [
   { id: 'ALL', label: 'Top Global & National' },
+  { id: 'SOCIAL_TV', label: '🔥 Social Media & TV Trends' },
   { id: 'INDIA', label: 'India' },
   { id: 'WORLD', label: 'World' },
   { id: 'BUSINESS', label: 'Business & Markets' },

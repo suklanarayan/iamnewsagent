@@ -53,8 +53,27 @@ export function resolveCuratedImageUrl(category: string, topic?: string): string
 }
 
 export async function fetchLiveWireNews(topic: string = 'ALL'): Promise<WireArticle[]> {
+  const baseUrl = typeof window !== 'undefined' ? '' : 'http://localhost:3000';
   try {
-    const res = await fetch(`/api/news/top-sources?topic=${encodeURIComponent(topic)}`);
+    if (topic === 'SOCIAL_TV') {
+      const res = await fetch(`${baseUrl}/api/news/social-tv-trending`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.items)) {
+          return data.items.map((i: any) => ({
+            id: i.id,
+            title: i.title,
+            source: `${i.sourceName} (${i.hashtag || (i.platform === 'tv' ? 'LIVE TV' : i.platform.toUpperCase())})`,
+            link: i.url,
+            pubDate: i.publishedAt,
+            snippet: `${i.approxTraffic ? `[${i.approxTraffic}] ` : ''}${i.summary}`,
+            category: i.category || 'Technology',
+          }));
+        }
+      }
+    }
+
+    const res = await fetch(`${baseUrl}/api/news/top-sources?topic=${encodeURIComponent(topic)}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.articles || [];

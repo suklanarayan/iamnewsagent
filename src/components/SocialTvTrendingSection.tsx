@@ -23,11 +23,13 @@ import { fetchSocialTvTrending } from '../services/socialTrendingService';
 
 interface SocialTvTrendingSectionProps {
   onSelectTag?: (tag: string) => void;
+  isAdmin?: boolean;
   onOpenAiRewriteModal?: (item: SocialTvTrendingItem) => void;
 }
 
 export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = ({
   onSelectTag,
+  isAdmin = false,
   onOpenAiRewriteModal,
 }) => {
   const [activePlatform, setActivePlatform] = useState<string>('all');
@@ -323,15 +325,24 @@ export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = (
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
 
-                {onOpenAiRewriteModal && (
+                {isAdmin && onOpenAiRewriteModal ? (
                   <button
                     type="button"
                     onClick={() => onOpenAiRewriteModal(featuredItem)}
                     className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
-                    title="Synthesize and rewrite this trending news with Gemini AI"
+                    title="Admin: Synthesize and rewrite this trending news with Gemini AI"
                   >
                     <Zap className="w-3.5 h-3.5 fill-current" />
                     <span>AI Rewrite</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBrief(featuredItem)}
+                    className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-slate-600" />
+                    <span>Read Brief</span>
                   </button>
                 )}
               </div>
@@ -396,15 +407,24 @@ export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = (
                     <ExternalLink className="w-3 h-3" />
                   </a>
 
-                  {onOpenAiRewriteModal && (
+                  {isAdmin && onOpenAiRewriteModal ? (
                     <button
                       type="button"
                       onClick={() => onOpenAiRewriteModal(item)}
                       className="text-amber-700 hover:text-amber-900 font-bold flex items-center gap-1 text-[11px] cursor-pointer"
-                      title="Turn this trending news into an article"
+                      title="Admin: Turn this trending news into an article"
                     >
                       <Zap className="w-3 h-3 fill-current" />
                       <span>Rewrite</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedBrief(item)}
+                      className="text-slate-600 hover:text-red-700 font-semibold flex items-center gap-1 text-[11px] cursor-pointer"
+                    >
+                      <Eye className="w-3 h-3" />
+                      <span>Quick View</span>
                     </button>
                   )}
                 </div>
@@ -480,7 +500,7 @@ export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = (
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
 
-              {onOpenAiRewriteModal && (
+              {isAdmin && onOpenAiRewriteModal ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -492,6 +512,14 @@ export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = (
                 >
                   <Zap className="w-3.5 h-3.5 fill-current" />
                   <span>AI Rewrite into Full Article</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setSelectedBrief(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Close
                 </button>
               )}
             </div>
