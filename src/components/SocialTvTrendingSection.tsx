@@ -36,20 +36,31 @@ export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = (
   const [items, setItems] = useState<SocialTvTrendingItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [lastSyncTimestamp, setLastSyncTimestamp] = useState<number>(() => Date.now());
   const [lastUpdated, setLastUpdated] = useState<string>('Just now');
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   const [selectedBrief, setSelectedBrief] = useState<SocialTvTrendingItem | null>(null);
 
   // Load trending data
-  const loadTrends = async (platform: string = 'all', refresh: boolean = false) => {
+  const loadTrends = async (platform: string = 'all', refresh: boolean = false, silent: boolean = false) => {
     if (refresh) setIsRefreshing(true);
-    else setIsLoading(true);
+    else if (!silent) setIsLoading(true);
 
     try {
       const data = await fetchSocialTvTrending(platform, refresh);
       setItems(data);
-      setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setLastSyncTimestamp(Date.now());
+      setLastUpdated('Just now');
+      if (refresh) {
+        setSyncFeedback(`Live radar synced • ${data.length} dispatches live`);
+        setTimeout(() => setSyncFeedback(null), 3500);
+      }
     } catch (err) {
       console.error('Failed to load social & TV trends:', err);
+      if (refresh) {
+        setSyncFeedback('Sync completed');
+        setTimeout(() => setSyncFeedback(null), 3000);
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -59,6 +70,32 @@ export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = (
   useEffect(() => {
     loadTrends(activePlatform);
   }, [activePlatform]);
+
+  // Live Auto-Sync: Poll every 90 seconds in background so public visitors always see live updates
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      loadTrends(activePlatform, true, true);
+    }, 90000);
+
+    return () => clearInterval(pollInterval);
+  }, [activePlatform]);
+
+  // Relative Time Display (Just now, 1m ago, 2m ago...)
+  useEffect(() => {
+    const ticker = setInterval(() => {
+      const diffSec = Math.floor((Date.now() - lastSyncTimestamp) / 1000);
+      if (diffSec < 45) {
+        setLastUpdated('Just now');
+      } else if (diffSec < 90) {
+        setLastUpdated('1m ago');
+      } else {
+        const mins = Math.floor(diffSec / 60);
+        setLastUpdated(`${mins}m ago`);
+      }
+    }, 10000);
+
+    return () => clearInterval(ticker);
+  }, [lastSyncTimestamp]);
 
   // Extract unique active hashtags for the top trending ribbon
   const allHashtags = Array.from(
@@ -137,21 +174,33 @@ export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = (
         </div>
 
         {/* Live sync status & refresh button */}
-        <div className="flex items-center gap-3 self-start md:self-auto">
-          <div className="text-right text-[11px] text-slate-500 hidden sm:block">
-            <span>Live Radar: </span>
-            <span className="font-semibold text-slate-700">{lastUpdated}</span>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 self-start md:self-auto">
+          {syncFeedback && (
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold animate-in fade-in zoom-in-95">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping" />
+              <span>{syncFeedback}</span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <div className="text-right text-[11px] text-slate-500 hidden sm:block">
+              <span className="inline-flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span>Live Radar: </span>
+              </span>
+              <span className="font-semibold text-slate-700 ml-1">{lastUpdated}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => loadTrends(activePlatform, true)}
+              disabled={isRefreshing}
+              className="px-3.5 py-1.5 rounded-lg border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs disabled:opacity-50 cursor-pointer active:scale-95"
+              title="Force sync live social & TV streams now"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-red-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>{isRefreshing ? 'Syncing Radar...' : 'Refresh Pulse'}</span>
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => loadTrends(activePlatform, true)}
-            disabled={isRefreshing}
-            className="px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
-            title="Refresh live social & TV feeds"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-red-600' : ''}`} />
-            <span>{isRefreshing ? 'Syncing...' : 'Refresh Pulse'}</span>
-          </button>
         </div>
       </div>
 

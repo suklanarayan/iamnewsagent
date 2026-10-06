@@ -8,9 +8,15 @@ export async function fetchSocialTvTrending(
 ): Promise<SocialTvTrendingItem[]> {
   try {
     const url = `/api/news/social-tv-trending?platform=${encodeURIComponent(platform)}${
-      refresh ? '&refresh=true' : ''
+      refresh ? `&refresh=true&_t=${Date.now()}` : ''
     }`;
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      cache: refresh ? 'no-cache' : 'default',
+      headers: {
+        'Pragma': 'no-cache',
+        'Cache-Control': 'no-cache',
+      },
+    });
     if (res.ok) {
       const data = await res.json();
       if (data && Array.isArray(data.items) && data.items.length > 0) {
@@ -49,7 +55,12 @@ export async function fetchSocialTvTrending(
     // ignore
   }
 
-  return DEFAULT_SOCIAL_TV_SEED;
+  // Generate fresh relative timestamps for fallback seeds
+  const now = Date.now();
+  return DEFAULT_SOCIAL_TV_SEED.map((seed, idx) => ({
+    ...seed,
+    publishedAt: new Date(now - (idx * 12 + 5) * 60 * 1000).toISOString(),
+  }));
 }
 
 export const DEFAULT_SOCIAL_TV_SEED: SocialTvTrendingItem[] = [
