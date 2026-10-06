@@ -89,6 +89,34 @@ export default function App() {
         return;
       }
 
+      // Handle direct browser hits for Sitemaps, Robots, RSS, and LLM text files
+      if (
+        pathname === '/sitemap.xml' ||
+        pathname === '/news-sitemap.xml' ||
+        pathname === '/robots.txt' ||
+        pathname === '/rss.xml' ||
+        pathname === '/feed.xml' ||
+        pathname === '/llms.txt' ||
+        pathname === '/llms-full.txt'
+      ) {
+        try {
+          const res = await fetch(pathname);
+          const raw = await res.text();
+          document.open();
+          const escaped = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          if (pathname.endsWith('.xml')) {
+            document.write(`<pre style="word-wrap: break-word; white-space: pre-wrap; font-family: monospace; font-size: 13px; line-height: 1.5; padding: 16px; background: #0f172a; color: #38bdf8;">${escaped}</pre>`);
+          } else {
+            document.write(`<pre style="word-wrap: break-word; white-space: pre-wrap; font-family: monospace; font-size: 13px; line-height: 1.5; padding: 16px; background: #ffffff; color: #1e293b;">${escaped}</pre>`);
+          }
+          document.close();
+          return;
+        } catch {
+          window.location.reload();
+          return;
+        }
+      }
+
       const articleMatch = pathname.match(/\/article\/([a-zA-Z0-9-_]+)/);
       if (articleMatch) {
         const slug = articleMatch[1];
