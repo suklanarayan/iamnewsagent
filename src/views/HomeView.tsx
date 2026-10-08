@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 import type { Article, Author, LiveStory, TrendingItem, OpinionPiece } from '../types';
 import { HeroSearchBanner } from '../components/HeroSearchBanner';
-import { FeatureRibbon } from '../components/FeatureRibbon';
 import { LiveStoriesBar } from '../components/LiveStoriesBar';
 import { StoryModal } from '../components/StoryModal';
 import { TopStoryHero } from '../components/TopStoryHero';
@@ -176,10 +175,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onFilterClick={handleFilterClick}
       />
 
-      {/* 2. VALUE PROPOSITION FEATURE RIBBON */}
-      <FeatureRibbon />
-
-      {/* 3. LIVE STORIES INSTAGRAM-STYLE STATUS BAR */}
+      {/* 2. LIVE STORIES STATUS BAR */}
       <LiveStoriesBar
         stories={activeStoriesList}
         onSelectStory={(story) => setActiveStory(story)}

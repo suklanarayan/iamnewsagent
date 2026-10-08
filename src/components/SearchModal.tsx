@@ -30,6 +30,7 @@ import {
   queryWikipediaKnowledge,
   type WikipediaSearchResult,
 } from '../services/wikipediaService';
+import { NewsImage } from './NewsImage';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -440,6 +441,10 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                           <img
                             src={wikiResult.summary.thumbnail}
                             alt={wikiResult.summary.title}
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLElement).style.display = 'none';
+                            }}
                             className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg object-cover border border-slate-200 shrink-0 bg-slate-100 shadow-xs"
                           />
                         )}
@@ -551,11 +556,13 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                           }}
                           className="py-3 px-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer group flex items-start gap-3 sm:gap-4"
                         >
-                          <img
-                            src={art.featuredImage}
-                            alt={art.headline}
-                            className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover shrink-0 bg-slate-100 shadow-2xs"
-                          />
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden shrink-0 bg-slate-900 shadow-2xs">
+                            <NewsImage
+                              src={art.featuredImage}
+                              alt={art.headline}
+                              category={art.category}
+                            />
+                          </div>
                           <div className="flex-1 min-w-0 space-y-1">
                             <div className="flex items-center gap-2 text-xs">
                               <span className="font-bold text-red-700 uppercase tracking-wider text-[10px]">

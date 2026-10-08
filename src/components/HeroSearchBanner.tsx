@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, ArrowRight, Sparkles, Globe } from 'lucide-react';
+import { Search, ArrowRight, Sparkles, Globe, Compass } from 'lucide-react';
 import { CURATED_TRENDING_TERMS } from '../utils/searchIntelligence';
 
 interface HeroSearchBannerProps {
@@ -7,14 +7,13 @@ interface HeroSearchBannerProps {
   onFilterClick: (filter: string) => void;
 }
 
-const QUICK_FILTERS = [
-  'Latest News',
-  'Explainers',
-  'Trending',
-  'India',
-  'World',
-  'Business',
-  'Technology',
+const TOPICS = [
+  { label: 'All News', value: 'all' },
+  { label: 'ISRO Launch', value: 'ISRO' },
+  { label: 'Global Markets', value: 'Markets' },
+  { label: 'Artificial Intelligence', value: 'Technology' },
+  { label: 'Durga Puja 2026', value: 'Explainers' },
+  { label: 'Indo-Pacific', value: 'World' },
 ];
 
 export const HeroSearchBanner: React.FC<HeroSearchBannerProps> = ({
@@ -34,11 +33,12 @@ export const HeroSearchBanner: React.FC<HeroSearchBannerProps> = ({
   };
 
   // Matching prediction terms for autocomplete in Hero
-  const matchingPredictions = query.trim().length > 1
-    ? CURATED_TRENDING_TERMS.filter((t) =>
-        t.toLowerCase().includes(query.trim().toLowerCase())
-      ).slice(0, 5)
-    : [];
+  const matchingPredictions =
+    query.trim().length > 1
+      ? CURATED_TRENDING_TERMS.filter((t) =>
+          t.toLowerCase().includes(query.trim().toLowerCase())
+        ).slice(0, 5)
+      : [];
 
   // Close suggestions if clicked outside
   useEffect(() => {
@@ -52,51 +52,27 @@ export const HeroSearchBanner: React.FC<HeroSearchBannerProps> = ({
   }, []);
 
   return (
-    <section className="relative w-full overflow-hidden bg-slate-950 text-white">
-      {/* Background Image: Earth from space / orbital night atmosphere */}
-      <div className="absolute inset-0 z-0 opacity-45 pointer-events-none">
-        <img
-          src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1920&q=85"
-          alt="Earth from Space"
-          className="w-full h-full object-cover object-center"
-        />
-        {/* Subtle gradient overlays */}
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/70 to-slate-950/90" />
-        <div className="absolute inset-0 bg-radial from-transparent to-slate-950/80" />
-      </div>
-
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16 lg:py-20 flex flex-col justify-between">
-        {/* Top Split: Heading on Left, Motto on Right */}
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 pb-8 sm:pb-12">
-          {/* Left Title & Tagline */}
-          <div className="max-w-2xl space-y-2">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white font-serif leading-[1.1]">
-              News <br />
-              Without Borders
-            </h1>
-            <p className="text-base sm:text-lg font-medium text-slate-200 pt-1">
-              Search. Explore. Understand.
-            </p>
-            <p className="text-xs sm:text-sm text-slate-400 max-w-xl">
-              AI-powered news search for a clearer, deeper, and broader perspective.
-            </p>
-          </div>
-
-          {/* Right Corner Brand Accent */}
-          <div className="md:text-right flex flex-col md:items-end justify-start self-start">
-            <div className="text-base sm:text-lg font-serif italic text-slate-200">
-              A More<br className="hidden sm:inline" /> Informed Tomorrow
+    <section className="w-full bg-slate-950 text-white border-b border-slate-900 py-4 sm:py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {/* Left Title / Editorial Kicker */}
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+              <span className="text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+                Rapid News Intelligence Desk
+              </span>
             </div>
-            <div className="w-12 h-0.5 bg-red-600 mt-2 rounded-full" />
+            <h1 className="text-lg sm:text-xl font-bold font-serif text-slate-100 tracking-tight">
+              Search Verified Dispatches & In-Depth Analysis
+            </h1>
           </div>
-        </div>
 
-        {/* Center: Large Rounded Search Bar */}
-        <div className="max-w-2xl mx-auto w-full space-y-4" ref={containerRef}>
-          <div className="relative">
+          {/* Right: Search Input Bar */}
+          <div className="w-full md:max-w-md lg:max-w-lg relative" ref={containerRef}>
             <form onSubmit={handleSubmit} className="relative flex items-center">
-              <div className="absolute left-4 sm:left-5 text-slate-500 pointer-events-none">
-                <Search className="w-4 h-4 sm:w-5 sm:h-5" />
+              <div className="absolute left-3.5 text-slate-400 pointer-events-none">
+                <Search className="w-4 h-4" />
               </div>
               <input
                 type="text"
@@ -106,24 +82,24 @@ export const HeroSearchBanner: React.FC<HeroSearchBannerProps> = ({
                   setQuery(e.target.value);
                   setIsFocused(true);
                 }}
-                placeholder="What do you want to know today? (e.g. ISRO, Markets, AI, Kolkata)"
-                className="w-full pl-11 sm:pl-13 pr-14 py-3 sm:py-4 rounded-full bg-white text-slate-900 placeholder:text-slate-500 text-sm sm:text-base font-medium shadow-2xl focus:outline-none focus:ring-2 focus:ring-red-500 border-none transition-all"
+                placeholder="Search topics, nations, tickers, leaders..."
+                className="w-full pl-10 pr-12 py-2 sm:py-2.5 rounded-lg bg-slate-900/90 border border-slate-800 text-white placeholder:text-slate-500 text-xs sm:text-sm font-medium focus:outline-none focus:ring-1 focus:ring-red-600 focus:border-red-600 transition-all shadow-inner"
               />
               <button
                 type="submit"
-                className="absolute right-2 sm:right-2.5 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#b91c1c] hover:bg-[#991b1b] text-white flex items-center justify-center transition-transform hover:scale-105 active:scale-95 shadow-md cursor-pointer"
-                aria-label="Submit search"
+                className="absolute right-1.5 w-7 h-7 sm:w-8 sm:h-8 rounded-md bg-red-700 hover:bg-red-600 text-white flex items-center justify-center transition-colors cursor-pointer"
+                aria-label="Execute Search"
               >
-                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
             </form>
 
             {/* Instant Predictive Autocomplete Dropdown in Hero */}
             {isFocused && query.trim().length > 1 && matchingPredictions.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-30 p-2 text-xs space-y-1 animate-in fade-in zoom-in-95">
-                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 border-b border-slate-100">
+              <div className="absolute left-0 right-0 top-full mt-1.5 bg-white text-slate-900 rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-30 p-1.5 text-xs space-y-1 animate-in fade-in zoom-in-95">
+                <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1 border-b border-slate-100">
                   <Sparkles className="w-3 h-3 text-amber-500" />
-                  <span>Keyword Suggestions & Search Predictions</span>
+                  <span>Search Suggestions</span>
                 </div>
                 {matchingPredictions.map((pred) => (
                   <button
@@ -134,45 +110,40 @@ export const HeroSearchBanner: React.FC<HeroSearchBannerProps> = ({
                       setIsFocused(false);
                       onSearchSubmit(pred);
                     }}
-                    className="w-full text-left px-3 py-2 rounded-xl text-slate-800 hover:bg-red-50 hover:text-red-700 font-medium transition-colors flex items-center justify-between cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-slate-800 hover:bg-red-50 hover:text-red-700 font-medium transition-colors flex items-center justify-between cursor-pointer"
                   >
                     <div className="flex items-center gap-2">
                       <Search className="w-3.5 h-3.5 text-slate-400" />
                       <span>{pred}</span>
                     </div>
-                    <span className="text-[10px] text-slate-400 font-mono">Press to search</span>
+                    <span className="text-[10px] text-slate-400 font-mono">↵</span>
                   </button>
                 ))}
-                <div className="pt-1 border-t border-slate-100 px-3 py-1 flex items-center justify-between text-[11px] text-slate-500">
-                  <span className="flex items-center gap-1 text-indigo-700">
-                    <Globe className="w-3 h-3" />
-                    <span>Includes Wikipedia & Wire Database</span>
-                  </span>
-                  <span className="font-mono text-[10px]">Enter ↵</span>
-                </div>
               </div>
             )}
           </div>
+        </div>
 
-          {/* Quick Filter Pill Chips */}
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-xs">
-            {QUICK_FILTERS.map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => onFilterClick(f)}
-                className="px-3 py-1 rounded-full bg-slate-900/80 hover:bg-white hover:text-slate-900 text-slate-300 border border-slate-700/80 transition-all cursor-pointer backdrop-blur-xs font-medium"
-              >
-                {f}
-              </button>
+        {/* Clean Editorial Topic Track (Zero pills, clean typography with subtle hover) */}
+        <div className="pt-3 mt-3 border-t border-slate-900/80 flex items-center gap-3 overflow-x-auto no-scrollbar text-xs">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 whitespace-nowrap flex-shrink-0">
+            Top Trends:
+          </span>
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            {TOPICS.map((topic, idx) => (
+              <React.Fragment key={topic.value}>
+                <button
+                  type="button"
+                  onClick={() => onFilterClick(topic.value)}
+                  className="text-slate-300 hover:text-white hover:underline transition-colors cursor-pointer text-xs font-medium"
+                >
+                  {topic.label}
+                </button>
+                {idx < TOPICS.length - 1 && (
+                  <span aria-hidden="true" className="text-slate-700">·</span>
+                )}
+              </React.Fragment>
             ))}
-            <button
-              type="button"
-              onClick={() => onFilterClick('all')}
-              className="px-2 py-1 rounded-full bg-slate-900/80 hover:bg-slate-800 text-slate-400 border border-slate-700/80 transition-colors"
-            >
-              &bull;&bull;&bull;
-            </button>
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { Clock, Eye, Sparkles, User, ArrowRight, Zap } from 'lucide-react';
 import type { Article, Author } from '../types';
 import { KeyTakeawaysBlock } from './KeyTakeawaysBlock';
+import { NewsImage } from './NewsImage';
 
 interface ArticleCardProps {
   article: Article;
@@ -33,33 +34,32 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
       >
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
           {/* Hero Image Container */}
-          <div className="lg:col-span-7 relative h-72 sm:h-96 lg:h-full min-h-[340px] overflow-hidden group cursor-pointer" onClick={() => onSelect(article)}>
-            <img
+          <div className="lg:col-span-7 relative h-64 sm:h-80 lg:h-full min-h-[300px] overflow-hidden group cursor-pointer" onClick={() => onSelect(article)}>
+            <NewsImage
               src={article.featuredImage}
               alt={article.headline}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+              category={article.category}
+              priority={true}
+              className="group-hover:scale-105 transition-transform duration-700"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent lg:hidden" />
             
             {/* Breaking Flash Badge & Format */}
-            <div className="absolute top-4 left-4 flex flex-wrap items-center gap-2">
-              <span className="px-2.5 py-1 rounded-full bg-red-600/90 text-white font-intel font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-lg backdrop-blur-sm">
-                <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+            <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 flex flex-wrap items-center gap-2">
+              <span className="px-2.5 py-1 rounded bg-red-600 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-lg">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
                 <Zap className="w-3.5 h-3.5 fill-white" />
                 Breaking Intelligence Hero
               </span>
               {article.articleType === 'announcement' && (
-                <span className="px-2.5 py-1 rounded-full bg-blue-600/90 text-white font-intel font-bold text-xs uppercase tracking-wider backdrop-blur-sm shadow-md">
-                  📢 Official Announcement
+                <span className="px-2 py-0.5 rounded bg-blue-700 text-white font-semibold text-xs tracking-wide shadow-md">
+                  Official Announcement
                 </span>
               )}
-              <span className="px-2 py-1 rounded-full bg-slate-900/80 text-amber-400 border border-amber-500/30 font-intel font-medium text-xs backdrop-blur-sm">
-                {article.category}
-              </span>
             </div>
 
             {article.imageCaption && (
-              <div className="absolute bottom-3 left-4 right-4 text-[11px] text-slate-300/80 font-intel bg-slate-950/60 backdrop-blur px-2.5 py-1 rounded truncate hidden sm:block">
+              <div className="absolute bottom-3 left-4 right-4 text-[11px] text-slate-300 font-sans bg-slate-950/80 backdrop-blur px-2.5 py-1 rounded truncate hidden sm:block">
                 {article.imageCaption}
               </div>
             )}
@@ -69,19 +69,20 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           <div className="lg:col-span-5 p-5 sm:p-7 flex flex-col justify-between bg-gradient-to-b from-slate-900 to-[#0c0e14]">
             <div>
               {/* Category & Meta */}
-              <div className="hidden lg:flex items-center gap-2 mb-3">
-                <span className="text-xs font-intel font-bold uppercase tracking-wider text-amber-400 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
+              <div className="flex items-center gap-2 mb-3 text-xs text-slate-400 font-medium">
+                <span className="font-bold uppercase tracking-wider text-amber-400">
                   {article.category}
                 </span>
-                <span className="text-xs font-intel text-slate-400">
-                  {formattedDate}
-                </span>
+                <span aria-hidden="true" className="text-slate-600">·</span>
+                <span>{formattedDate}</span>
+                <span aria-hidden="true" className="text-slate-600">·</span>
+                <span>{article.readTimeMinutes} min brief</span>
               </div>
 
               {/* Headline */}
               <h2
                 onClick={() => onSelect(article)}
-                className="text-xl sm:text-2xl lg:text-3xl font-bold font-editorial text-slate-100 hover:text-amber-400 cursor-pointer transition-colors leading-tight mb-3"
+                className="text-xl sm:text-2xl lg:text-3xl font-bold font-editorial text-slate-100 hover:text-amber-400 cursor-pointer transition-colors leading-tight mb-3 [text-wrap:balance]"
               >
                 {article.headline}
               </h2>
@@ -151,32 +152,28 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         <div>
           {/* Card Image */}
           <div
-            className="relative h-48 overflow-hidden cursor-pointer"
+            className="relative h-48 overflow-hidden cursor-pointer bg-slate-950"
             onClick={() => onSelect(article)}
           >
-            <img
+            <NewsImage
               src={article.featuredImage}
               alt={article.headline}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              loading="lazy"
+              category={article.category}
+              className="group-hover:scale-105 transition-transform duration-500"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent" />
-            <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5">
-              <span className="px-2 py-0.5 rounded bg-slate-950/80 text-amber-400 font-intel font-semibold text-[11px] border border-amber-500/20 backdrop-blur-sm">
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent pointer-events-none" />
+            <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
+              <span className="text-amber-400 font-bold text-xs uppercase tracking-wider">
                 {article.category}
               </span>
-              {article.articleType === 'announcement' && (
-                <span className="px-1.5 py-0.5 rounded bg-blue-600/90 text-white font-intel font-bold text-[10px] uppercase backdrop-blur-sm">
-                  📢 Announcement
-                </span>
-              )}
               {article.isBreaking && (
-                <span className="px-1.5 py-0.5 rounded bg-red-600 text-white font-intel font-bold text-[10px] uppercase">
+                <span className="text-red-400 font-bold text-[11px] uppercase flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-ping" />
                   Flash
                 </span>
               )}
             </div>
-            <div className="absolute bottom-2 right-3 text-[11px] font-intel text-slate-300 flex items-center gap-1 bg-slate-950/60 backdrop-blur px-2 py-0.5 rounded">
+            <div className="absolute bottom-2 right-3 z-10 text-[11px] text-slate-300 flex items-center gap-1 bg-slate-950/70 backdrop-blur px-2 py-0.5 rounded">
               <Clock className="w-3 h-3" />
               {article.readTimeMinutes}m
             </div>
@@ -198,7 +195,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             {/* Key Takeaway snippet preview */}
             {article.keyTakeaways && article.keyTakeaways.length > 0 && (
               <div className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80 mb-3">
-                <div className="flex items-center gap-1 text-[10px] font-intel font-bold text-amber-400 uppercase tracking-wider mb-1">
+                <div className="flex items-center gap-1 text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1">
                   <Sparkles className="w-3 h-3" />
                   Key Takeaway
                 </div>
@@ -211,7 +208,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         </div>
 
         {/* Card Footer */}
-        <div className="px-4 sm:px-5 pb-4 pt-2 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400 font-intel">
+        <div className="px-4 sm:px-5 pb-4 pt-2 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
           <div
             onClick={() => onSelectAuthor && onSelectAuthor(article.authorId)}
             className="flex items-center gap-2 cursor-pointer hover:text-amber-400 transition-colors truncate max-w-[170px]"
@@ -245,29 +242,31 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         className="p-4 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 transition-all flex flex-col sm:flex-row items-start gap-4 group"
       >
         <div
-          className="relative w-full sm:w-48 h-32 sm:h-28 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer"
+          className="relative w-full sm:w-48 h-32 sm:h-28 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer bg-slate-950"
           onClick={() => onSelect(article)}
         >
-          <img
+          <NewsImage
             src={article.featuredImage}
             alt={article.headline}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            category={article.category}
+            className="group-hover:scale-105 transition-transform duration-300"
           />
           {article.isBreaking && (
-            <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-red-600 text-white font-intel font-bold text-[9px]">
+            <span className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-red-600 text-white font-bold text-[9px] uppercase tracking-wider">
               BREAKING
             </span>
           )}
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-[10px] font-intel font-semibold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+          <div className="flex items-center gap-2 mb-1.5 text-xs text-slate-400 font-medium">
+            <span className="font-bold text-amber-400 uppercase tracking-wider">
               {article.category}
             </span>
-            <span className="text-[11px] font-intel text-slate-400">
-              {formattedDate} &bull; {article.readTimeMinutes}m brief
-            </span>
+            <span aria-hidden="true" className="text-slate-600">·</span>
+            <span>{formattedDate}</span>
+            <span aria-hidden="true" className="text-slate-600">·</span>
+            <span>{article.readTimeMinutes}m brief</span>
           </div>
 
           <h3
@@ -281,7 +280,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             {article.deck}
           </p>
 
-          <div className="flex items-center justify-between text-xs text-slate-400 font-intel">
+          <div className="flex items-center justify-between text-xs text-slate-400">
             <span
               onClick={() => onSelectAuthor && onSelectAuthor(article.authorId)}
               className="hover:text-amber-400 cursor-pointer"

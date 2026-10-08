@@ -227,7 +227,7 @@ export default function App() {
     : [];
 
   return (
-    <div className="min-h-screen bg-[#fcfcfd] text-slate-900 flex flex-col selection:bg-red-100 selection:text-red-900">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#fcfcfd] text-slate-900 flex flex-col selection:bg-red-100 selection:text-red-900">
       {/* 1. REAL-TIME BREAKING DISPATCH TICKER */}
       {currentView !== 'cms' && (
         <BreakingTicker

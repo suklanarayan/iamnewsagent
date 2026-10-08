@@ -163,8 +163,16 @@ export const StoryModal: React.FC<StoryModalProps> = ({
           {/* Story author/topic info */}
           <div className="flex items-center justify-between text-white">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full border-2 border-red-500 overflow-hidden">
-                <img src={currentStory.image} alt="" className="w-full h-full object-cover" />
+              <div className="w-8 h-8 rounded-full border-2 border-red-500 overflow-hidden bg-slate-900 shrink-0">
+                <img
+                  src={currentStory.image || '/brics-2026-summit.svg'}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    e.currentTarget.src = '/brics-2026-summit.svg';
+                  }}
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div>
                 <div className="text-xs font-bold font-serif flex items-center gap-1.5">

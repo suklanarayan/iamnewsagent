@@ -50,7 +50,14 @@ function initializeLocalStorage(): { articles: Article[]; authors: Author[] } {
             p = '2026-09-20T09:30:00.000Z';
             u = '2026-09-20T09:30:00.000Z';
           }
-          return { ...a, publishedAt: p, updatedAt: u };
+          let img = a.featuredImage;
+          if (img && img.includes('photo-1517976487502-5f7140e4f3a9')) {
+            img = 'https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?auto=format&fit=crop&w=1200&q=85';
+          }
+          if (img && img.includes('photo-1601055903647-87332213e2d6')) {
+            img = 'https://images.unsplash.com/photo-1620766182966-c6eb5ed2b788?auto=format&fit=crop&w=1200&q=85';
+          }
+          return { ...a, publishedAt: p, updatedAt: u, featuredImage: img };
         });
 
         let merged = false;
@@ -107,9 +114,20 @@ export function getLocalArticles(): Article[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return parsed.sort(
-          (a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime()
-        );
+        return parsed
+          .map((art: Article) => {
+            let img = art.featuredImage;
+            if (img && img.includes('photo-1517976487502-5f7140e4f3a9')) {
+              img = 'https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?auto=format&fit=crop&w=1200&q=85';
+            }
+            if (img && img.includes('photo-1601055903647-87332213e2d6')) {
+              img = 'https://images.unsplash.com/photo-1620766182966-c6eb5ed2b788?auto=format&fit=crop&w=1200&q=85';
+            }
+            return { ...art, featuredImage: img };
+          })
+          .sort(
+            (a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime()
+          );
       }
     }
   } catch (e) {

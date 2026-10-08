@@ -22,6 +22,7 @@ import { KeyTakeawaysBlock } from '../components/KeyTakeawaysBlock';
 import { BannerAd } from '../components/BannerAd';
 import { injectArticleSchema, removeArticleSchema } from '../utils/seo';
 import { getStatusMeta } from '../utils/statusUtils';
+import { NewsImage } from '../components/NewsImage';
 
 interface ArticleViewProps {
   article: Article;
@@ -392,10 +393,12 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
             {/* Featured Image */}
             {article.featuredImage && (
               <figure className="space-y-2">
-                <div className="rounded-2xl overflow-hidden bg-slate-100 max-h-[500px] border border-slate-200">
-                  <img
+                <div className="rounded-2xl overflow-hidden bg-slate-900 max-h-[500px] border border-slate-200">
+                  <NewsImage
                     src={article.featuredImage}
                     alt={article.headline}
+                    category={article.category}
+                    priority={true}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -573,11 +576,13 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
                       onClick={() => onSelectArticle(rel)}
                       className="py-3 flex items-start gap-3 group cursor-pointer"
                     >
-                      <img
-                        src={rel.featuredImage}
-                        alt={rel.headline}
-                        className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-                      />
+                      <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-slate-900">
+                        <NewsImage
+                          src={rel.featuredImage}
+                          alt={rel.headline}
+                          category={rel.category}
+                        />
+                      </div>
                       <div className="min-w-0">
                         <h4 className="text-xs font-bold font-serif text-slate-900 group-hover:text-red-700 transition-colors line-clamp-2">
                           {rel.headline}

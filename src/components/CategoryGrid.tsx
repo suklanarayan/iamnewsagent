@@ -2,12 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 import type { CategoryItem } from '../types';
 import { getCategories, loadCategoriesFromFirestore } from '../utils/categoryManager';
+import { NewsImage } from './NewsImage';
 
 interface CategoryGridProps {
   onSelectCategory: (category: string) => void;
 }
-
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=400&q=80';
 
 export const CategoryGrid: React.FC<CategoryGridProps> = ({
   onSelectCategory,
@@ -46,9 +45,14 @@ export const CategoryGrid: React.FC<CategoryGridProps> = ({
     <section className="space-y-4" id="home-explore-by-category">
       {/* Section Header */}
       <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-        <h3 className="text-xl sm:text-2xl font-bold font-serif text-slate-950">
-          Explore by Category
-        </h3>
+        <div>
+          <h3 className="text-xl sm:text-2xl font-bold font-serif text-slate-950">
+            Explore by Category
+          </h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Curated reporting across national, global and industry desks.
+          </p>
+        </div>
         <button
           type="button"
           onClick={() => onSelectCategory('all')}
@@ -66,28 +70,21 @@ export const CategoryGrid: React.FC<CategoryGridProps> = ({
             key={cat.id}
             type="button"
             onClick={() => onSelectCategory(cat.name || cat.id)}
-            className="flex flex-col text-left group cursor-pointer bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-all"
+            className="flex flex-col text-left group cursor-pointer bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md hover:border-slate-300 transition-all"
           >
-            {/* Thumbnail */}
-            <div className="h-20 sm:h-22 w-full overflow-hidden bg-slate-100 relative">
-              <img
-                src={cat.image || FALLBACK_IMAGE}
+            {/* Thumbnail with NewsImage fallback */}
+            <div className="h-20 sm:h-22 w-full overflow-hidden bg-slate-900 relative">
+              <NewsImage
+                src={cat.image}
                 alt={cat.name}
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                loading="lazy"
-                onError={(e) => {
-                  const target = e.currentTarget;
-                  if (target.src !== FALLBACK_IMAGE) {
-                    target.src = FALLBACK_IMAGE;
-                  }
-                }}
+                category={cat.name}
+                className="group-hover:scale-105 transition-transform duration-300"
               />
             </div>
 
             {/* Label */}
             <div className="p-2 sm:p-2.5 space-y-0.5">
-              <div className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-red-700 transition-colors">
+              <div className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-red-700 transition-colors truncate">
                 {cat.name}
               </div>
               <div className="text-[10px] text-slate-500 leading-tight line-clamp-1">

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import type { Article } from '../types';
+import { NewsImage } from './NewsImage';
 
 interface ExplainersRowProps {
   explainers: Article[];
@@ -17,9 +18,14 @@ export const ExplainersRow: React.FC<ExplainersRowProps> = ({
     <div className="space-y-4">
       {/* Section Header */}
       <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-        <h3 className="text-xl sm:text-2xl font-bold font-serif text-slate-950">
-          Explainers
-        </h3>
+        <div>
+          <h3 className="text-xl sm:text-2xl font-bold font-serif text-slate-950">
+            Explainers & Deep Dives
+          </h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Clear backgrounders, historical context and thematic breakdowns.
+          </p>
+        </div>
         <button
           type="button"
           onClick={onViewAllExplainers}
@@ -40,20 +46,24 @@ export const ExplainersRow: React.FC<ExplainersRowProps> = ({
           >
             {/* Image */}
             <div className="h-44 sm:h-52 w-full overflow-hidden bg-slate-900 relative">
-              <img
+              <NewsImage
                 src={art.featuredImage}
                 alt={art.headline}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                loading="lazy"
+                category="Explainers"
+                className="group-hover:scale-105 transition-transform duration-500"
               />
             </div>
 
             {/* Content */}
             <div className="p-4 sm:p-5 space-y-2 flex-1 flex flex-col justify-between">
               <div className="space-y-2">
-                <span className="inline-block px-2 py-0.5 rounded bg-red-700 text-white text-[10px] font-bold uppercase tracking-wider">
-                  EXPLAINER
-                </span>
+                <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                  <span className="font-bold text-amber-700 uppercase tracking-wider">
+                    EXPLAINER
+                  </span>
+                  <span aria-hidden="true" className="text-slate-300">·</span>
+                  <span>{art.readTimeMinutes || 5} min read</span>
+                </div>
 
                 <h4 className="text-base sm:text-lg font-bold font-serif text-slate-950 group-hover:text-red-700 transition-colors leading-snug">
                   {art.headline}
@@ -64,7 +74,7 @@ export const ExplainersRow: React.FC<ExplainersRowProps> = ({
                 </p>
               </div>
 
-              <div className="pt-3 text-xs font-bold text-red-700 group-hover:text-red-800 inline-flex items-center gap-1">
+              <div className="pt-3 text-xs font-bold text-red-700 group-hover:text-red-800 inline-flex items-center gap-1.5">
                 <span>Read Full Explainer</span>
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
               </div>

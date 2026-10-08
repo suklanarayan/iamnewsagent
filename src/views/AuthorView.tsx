@@ -51,6 +51,11 @@ export const AuthorView: React.FC<AuthorViewProps> = ({
             <img
               src={author.avatar}
               alt={author.name}
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                e.currentTarget.src =
+                  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80';
+              }}
               className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border-2 border-amber-500/40 shadow-xl"
             />
             {author.verified && (

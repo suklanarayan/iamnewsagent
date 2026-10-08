@@ -194,12 +194,12 @@ export const BannerAd = ({
     );
   }
 
-  // Format 4: Sticky Bottom Anchor
+  // Format 4: Sticky Bottom Anchor (Desktop & Tablet only to preserve mobile reading space)
   return (
     <div
       id={`ad-sticky-${activeAd.id || 'sticky'}`}
       aria-label="Floating Sponsored Anchor"
-      className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-2.5 shadow-lg transition-transform"
+      className="hidden sm:block fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-2.5 shadow-lg transition-transform"
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">

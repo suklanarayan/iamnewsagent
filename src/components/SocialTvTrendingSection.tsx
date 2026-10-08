@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import type { SocialTvTrendingItem, SocialPlatformType } from '../types';
 import { fetchSocialTvTrending } from '../services/socialTrendingService';
+import { NewsImage } from './NewsImage';
 
 interface SocialTvTrendingSectionProps {
   onSelectTag?: (tag: string) => void;
@@ -308,10 +309,11 @@ export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = (
               <div>
                 {/* Visual Thumbnail */}
                 <div className="relative h-56 sm:h-64 w-full overflow-hidden bg-slate-900">
-                  <img
+                  <NewsImage
                     src={featuredItem.imageUrl}
                     alt={featuredItem.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    category="Trending"
+                    className="group-hover:scale-105 transition-transform duration-700"
                   />
 
                   {/* Broadcast / Velocity Indicator Overlay */}

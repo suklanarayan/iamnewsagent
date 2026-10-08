@@ -33,7 +33,7 @@ export const LiveStoriesBar: React.FC<LiveStoriesBarProps> = ({
   onSelectStory,
 }) => {
   return (
-    <section className="w-full bg-white border-b border-slate-200 py-6">
+    <section className="w-full max-w-full overflow-hidden bg-white border-b border-slate-200 py-3.5 sm:py-5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         {/* Section Header */}
         <div className="flex items-center justify-between pb-4">
