@@ -53,7 +53,7 @@ export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = (
       setLastSyncTimestamp(Date.now());
       setLastUpdated('Just now');
       if (refresh) {
-        setSyncFeedback(`Live radar synced • ${data.length} dispatches live`);
+        setSyncFeedback(`Live radar synced • ${data.length} trending stories live`);
         setTimeout(() => setSyncFeedback(null), 3500);
       }
     } catch (err) {
@@ -298,7 +298,7 @@ export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = (
             No live trending streams found for this platform.
           </p>
           <p className="text-xs text-slate-500">
-            Click 'All Viral & TV' to view cross-platform intelligence dispatches.
+            Click 'All Viral & TV' to view cross-platform live trending news.
           </p>
         </div>
       ) : (

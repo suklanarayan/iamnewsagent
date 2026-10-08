@@ -195,7 +195,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDownInput}
-                placeholder="Search wire dispatches, topics, people, or ask Wikipedia..."
+                placeholder="Search breaking news, headlines, topics, or ask Wikipedia..."
                 className="w-full bg-transparent text-slate-900 placeholder:text-slate-400 text-sm sm:text-base font-medium focus:outline-none pr-8"
               />
             </div>
@@ -604,7 +604,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
               Intelligent Search Engine
             </span>
             <span>&bull;</span>
-            <span>{articles.length} Wire Dispatches in DB</span>
+            <span>{articles.length} Verified Stories in DB</span>
             <span>&bull;</span>
             <span>Live Wikipedia Grounding</span>
           </div>

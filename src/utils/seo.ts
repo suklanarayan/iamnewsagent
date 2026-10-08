@@ -31,23 +31,23 @@ const KNOWLEDGE_GRAPH_ORGANIZATION = {
     'https://linkedin.com/company/iamquickagent',
     'https://youtube.com/@iamquickagent',
   ],
-  'description': 'High-performance rapid digital news and intelligence publishing platform delivering real-time geopolitical, tech, semiconductor, cyber, and macroeconomic briefings with structured executive key takeaways.',
+  'description': 'Real-time digital breaking news and multimedia publishing network delivering live coverage across India, World, Business, Markets, Technology, Politics, Sports, and in-depth explainers.',
   'foundingDate': '2024-03-01',
   'founder': {
     '@type': 'Person',
     'name': 'Narayan Shukla',
-    'jobTitle': 'Founder & Lead Intelligence Analyst',
+    'jobTitle': 'Editor-in-Chief & Founder',
     'url': `${DEFAULT_BASE_URL}/author/author-narayan-shukla`,
   },
   'knowsAbout': [
-    'Geopolitics',
-    'Artificial Intelligence',
-    'Semiconductor Manufacturing',
-    'Digital Public Infrastructure',
-    'Macroeconomics',
+    'Breaking News',
+    'India & Global Politics',
+    'World Affairs',
     'Financial Markets',
-    'Cyber Security',
-    'Defense Modernization',
+    'Artificial Intelligence & Technology',
+    'Economy & Business',
+    'Science & Space',
+    'Culture & Sports',
   ],
   'publishingPrinciples': `${DEFAULT_BASE_URL}/editorial-standards`,
   'ethicsPolicy': `${DEFAULT_BASE_URL}/editorial-standards#ethics`,
@@ -202,12 +202,12 @@ export function injectHomeSchema(): void {
 
   const websiteSchema = {
     '@context': 'https://schema.org',
-    '@type': 'WebSite',
+    '@type': 'NewsMediaOrganization',
     '@id': `${DEFAULT_BASE_URL}/#website`,
     'url': DEFAULT_BASE_URL,
     'name': 'iamquickagent.com',
-    'alternateName': 'iamnewsagent',
-    'description': 'High-performance rapid digital news and intelligence publishing platform delivering real-time geopolitical, tech, cyber, and macro briefings.',
+    'alternateName': ['iamquickagent', 'iamnewsagent'],
+    'description': 'Real-time breaking news portal delivering live headlines, market tracking, political coverage, and in-depth explainers.',
     'publisher': {
       '@id': `${DEFAULT_BASE_URL}/#organization`,
     },
@@ -225,16 +225,16 @@ export function injectHomeSchema(): void {
   appendJsonLd(WEBSITE_SCHEMA_ID, websiteSchema);
   appendJsonLd(KNOWLEDGE_GRAPH_SCHEMA_ID, KNOWLEDGE_GRAPH_ORGANIZATION);
 
-  document.title = 'iamquickagent.com - Rapid Digital News & Intelligence Agent';
+  document.title = 'iamquickagent.com - Latest Breaking News, Live Updates & Global Headlines';
   updateMeta(
     'description',
-    'High-performance rapid digital news and intelligence publishing platform with key takeaway briefs, breaking dispatches, and deep analysis.'
+    'Live breaking news, real-time headlines, and in-depth reporting across India, World, Business, Tech, Markets, Sports, and Politics with executive takeaways.'
   );
   updateMeta('og:type', 'website');
-  updateMeta('og:title', 'iamquickagent.com - Rapid Digital News & Intelligence Agent');
+  updateMeta('og:title', 'iamquickagent.com - Latest Breaking News, Live Updates & Global Headlines');
   updateMeta(
     'og:description',
-    'High-performance rapid digital news and intelligence publishing platform with key takeaway briefs, breaking dispatches, and deep analysis.'
+    'Live breaking news, real-time headlines, and in-depth reporting across India, World, Business, Tech, Markets, Sports, and Politics with executive takeaways.'
   );
   updateMeta('og:url', `${DEFAULT_BASE_URL}/`);
   updateCanonical(`${DEFAULT_BASE_URL}/`);
@@ -251,8 +251,8 @@ export function injectCategorySchema(category: string, count: number): void {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
     '@id': `${canonicalUrl}#collection`,
-    'name': `${category} Intelligence Briefs & News | iamquickagent.com`,
-    'description': `Latest verified dispatches, deep-dive explainers, and real-time coverage on ${category}.`,
+    'name': `${category} News & Breaking Headlines | iamquickagent.com`,
+    'description': `Latest breaking news, live reporting, and in-depth explainers in ${category}.`,
     'url': canonicalUrl,
     'isPartOf': {
       '@id': `${DEFAULT_BASE_URL}/#website`,
@@ -266,10 +266,10 @@ export function injectCategorySchema(category: string, count: number): void {
 
   appendJsonLd(CATEGORY_SCHEMA_ID, categorySchema);
 
-  document.title = `${category} News & Intelligence Briefs | iamquickagent.com`;
-  updateMeta('description', `Read the latest verified news dispatches, executive takeaways, and breaking coverage on ${category} from iamquickagent.com.`);
-  updateMeta('og:title', `${category} News & Intelligence Briefs | iamquickagent.com`);
-  updateMeta('og:description', `Read verified news dispatches, executive takeaways, and breaking coverage on ${category}.`);
+  document.title = `${category} News & Breaking Headlines | iamquickagent.com`;
+  updateMeta('description', `Read latest ${category} breaking news, live updates, and top stories from iamquickagent.com.`);
+  updateMeta('og:title', `${category} News & Breaking Headlines | iamquickagent.com`);
+  updateMeta('og:description', `Read latest ${category} breaking news, live updates, and top stories.`);
   updateMeta('og:url', canonicalUrl);
   updateCanonical(canonicalUrl);
 }

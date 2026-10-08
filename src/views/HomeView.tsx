@@ -86,8 +86,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
     articles.find((a) => a.isExplainer) ||
     articles[1];
 
-  // Explainers for row
-  const explainers = articles.filter((a) => a.isExplainer || a.category === 'Explainers');
+  // Explainers & In-Depth Deep Dives (ensures full coverage without desktop blank space)
+  const explicitExplainers = articles.filter((a) => a.isExplainer || a.category === 'Explainers');
+  const explainers = [
+    ...explicitExplainers,
+    ...articles.filter(
+      (a) =>
+        !explicitExplainers.some((e) => e.id === a.id) &&
+        a.id !== heroArticle?.id &&
+        (a.keyTakeaways?.length > 1 || a.category === 'Technology' || a.category === 'World')
+    ),
+  ].slice(0, 6);
 
   // Handle hero search submit
   const handleHeroSearch = (query: string) => {
@@ -169,10 +178,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   return (
     <div className="bg-white text-slate-900 pb-16 space-y-8 sm:space-y-10">
-      {/* 1. HERO SEARCH & BRAND BANNER (EARTH FROM SPACE) */}
+      {/* 1. HERO SEARCH & BRAND BANNER (GOOGLE SEARCH TYPE VIEW) */}
       <HeroSearchBanner
         onSearchSubmit={handleHeroSearch}
         onFilterClick={handleFilterClick}
+        articles={articles}
+        onSelectArticle={onSelectArticle}
       />
 
       {/* 2. LIVE STORIES STATUS BAR */}

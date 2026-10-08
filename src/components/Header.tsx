@@ -370,7 +370,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className="space-y-4"
               >
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Join 45,000+ informed decision makers. Receive unbiased rapid dispatches, market telemetry, and geopolitical analysis delivered directly to your inbox every morning.
+                  Join 45,000+ informed readers. Receive breaking news alerts, top morning headlines, market updates, and in-depth explainers delivered directly to your inbox every morning.
                 </p>
 
                 <div className="space-y-2">
