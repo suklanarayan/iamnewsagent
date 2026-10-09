@@ -553,9 +553,9 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onSelectAuthor(author.id)}
-                  className="w-full py-2 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-semibold transition-colors"
+                  className="w-full py-2 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-semibold transition-colors cursor-pointer"
                 >
-                  View All Dispatches by {author.name.split(' ')[0]}
+                  View All Stories by {author.name.split(' ')[0]}
                 </button>
               </div>
             )}
