@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import { SEED_ARTICLES, SEED_AUTHORS } from './src/data/seedData';
@@ -1181,6 +1182,145 @@ app.get(['/llms.txt', '/llms-full.txt'], (_req, res) => {
   res.send(doc);
 });
 
+// Helper: Escape XML/HTML special characters
+function escapeHtmlMeta(unsafe: string): string {
+  if (!unsafe) return '';
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// SEO Pre-rendering & Metadata Generator for Search Engines & Social Platforms
+function renderHtmlWithSeo(urlPath: string, templateHtml: string): string {
+  let html = templateHtml;
+  const baseUrl = 'https://iamquickagent.com';
+
+  // 1. Article Page: /article/:slug
+  const articleMatch = urlPath.match(/^\/article\/([a-zA-Z0-9-_]+)/);
+  if (articleMatch) {
+    const slug = articleMatch[1];
+    const article = SEED_ARTICLES.find((a) => a.slug === slug);
+    if (article) {
+      const pageTitle = `${article.headline} - iamquickagent.com`;
+      const desc = escapeHtmlMeta(article.deck || article.keyTakeaways?.[0] || 'Live breaking news and intelligence from iamquickagent.com');
+      const canonicalUrl = `${baseUrl}/article/${encodeURIComponent(article.slug)}`;
+      const img = article.featuredImage || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&h=630&q=85';
+
+      html = html.replace(/<title>.*?<\/title>/i, `<title>${escapeHtmlMeta(pageTitle)}</title>`);
+      html = html.replace(/<meta name="description" content=".*?" \/>/i, `<meta name="description" content="${desc}" />`);
+
+      // OpenGraph
+      html = html.replace(/<meta property="og:title" content=".*?" \/>/i, `<meta property="og:title" content="${escapeHtmlMeta(pageTitle)}" />`);
+      html = html.replace(/<meta property="og:description" content=".*?" \/>/i, `<meta property="og:description" content="${desc}" />`);
+      html = html.replace(/<meta property="og:url" content=".*?" \/>/i, `<meta property="og:url" content="${canonicalUrl}" />`);
+      html = html.replace(/<meta property="og:type" content=".*?" \/>/i, `<meta property="og:type" content="article" />`);
+      html = html.replace(/<meta property="og:image" content=".*?" \/>/i, `<meta property="og:image" content="${img}" />`);
+
+      // Twitter Cards
+      html = html.replace(/<meta name="twitter:title" content=".*?" \/>/i, `<meta name="twitter:title" content="${escapeHtmlMeta(pageTitle)}" />`);
+      html = html.replace(/<meta name="twitter:description" content=".*?" \/>/i, `<meta name="twitter:description" content="${desc}" />`);
+      html = html.replace(/<meta name="twitter:image" content=".*?" \/>/i, `<meta name="twitter:image" content="${img}" />`);
+
+      // Self-referencing Canonical URL
+      const canonicalTag = `<link rel="canonical" href="${canonicalUrl}" />`;
+      if (html.includes('rel="canonical"')) {
+        html = html.replace(/<link[^>]*rel="canonical"[^>]*>/i, canonicalTag);
+      } else {
+        html = html.replace('</head>', `    ${canonicalTag}\n  </head>`);
+      }
+
+      // JSON-LD NewsArticle structured data
+      const jsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'NewsArticle',
+        'mainEntityOfPage': {
+          '@type': 'WebPage',
+          '@id': canonicalUrl,
+        },
+        'headline': article.headline,
+        'description': article.deck || desc,
+        'image': [img],
+        'datePublished': article.publishedAt,
+        'dateModified': article.updatedAt || article.publishedAt,
+        'articleSection': article.category,
+        'author': {
+          '@type': 'Person',
+          'name': article.author?.name || 'iamquickagent.com Newsroom',
+        },
+        'publisher': {
+          '@type': 'NewsMediaOrganization',
+          'name': 'iamquickagent.com',
+          'url': baseUrl,
+          'logo': {
+            '@type': 'ImageObject',
+            'url': `${baseUrl}/favicon.svg`,
+          },
+        },
+      };
+      html = html.replace('</head>', `    <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>\n  </head>`);
+
+      // Crawlable DOM inside root for Googlebot and non-JS search crawlers
+      const noscriptHtml = `
+        <noscript>
+          <article itemscope itemtype="https://schema.org/NewsArticle">
+            <h1 itemprop="headline">${article.headline}</h1>
+            <p itemprop="description"><em>${article.deck || ''}</em></p>
+            <div>
+              <p>Category: ${article.category} | Published: ${article.publishedAt}</p>
+              <div>${article.content || ''}</div>
+            </div>
+          </article>
+        </noscript>
+      `;
+      html = html.replace('<div id="root"></div>', `<div id="root">${noscriptHtml}</div>`);
+      return html;
+    }
+  }
+
+  // 2. Author Profile Page: /author/:id
+  const authorMatch = urlPath.match(/^\/author\/([a-zA-Z0-9-_]+)/);
+  if (authorMatch) {
+    const authorId = authorMatch[1];
+    const author = SEED_AUTHORS.find((a) => a.id === authorId);
+    if (author) {
+      const pageTitle = `${author.name} - Editorial Profile & Wire Dispatches | iamquickagent.com`;
+      const desc = escapeHtmlMeta(`${author.bio || author.role} at iamquickagent.com. Explore published investigative articles and intelligence briefings.`);
+      const canonicalUrl = `${baseUrl}/author/${encodeURIComponent(author.id)}`;
+
+      html = html.replace(/<title>.*?<\/title>/i, `<title>${escapeHtmlMeta(pageTitle)}</title>`);
+      html = html.replace(/<meta name="description" content=".*?" \/>/i, `<meta name="description" content="${desc}" />`);
+      html = html.replace(/<meta property="og:title" content=".*?" \/>/i, `<meta property="og:title" content="${escapeHtmlMeta(pageTitle)}" />`);
+      html = html.replace(/<meta property="og:description" content=".*?" \/>/i, `<meta property="og:description" content="${desc}" />`);
+      html = html.replace(/<meta property="og:url" content=".*?" \/>/i, `<meta property="og:url" content="${canonicalUrl}" />`);
+
+      const canonicalTag = `<link rel="canonical" href="${canonicalUrl}" />`;
+      if (html.includes('rel="canonical"')) {
+        html = html.replace(/<link[^>]*rel="canonical"[^>]*>/i, canonicalTag);
+      } else {
+        html = html.replace('</head>', `    ${canonicalTag}\n  </head>`);
+      }
+      return html;
+    }
+  }
+
+  // 3. Homepage or Category default: Ensure valid canonical URL
+  const canonicalUrl = urlPath.startsWith('/?category=')
+    ? `${baseUrl}${urlPath}`
+    : `${baseUrl}/`;
+
+  const canonicalTag = `<link rel="canonical" href="${canonicalUrl}" />`;
+  if (html.includes('rel="canonical"')) {
+    html = html.replace(/<link[^>]*rel="canonical"[^>]*>/i, canonicalTag);
+  } else {
+    html = html.replace('</head>', `    ${canonicalTag}\n  </head>`);
+  }
+
+  return html;
+}
+
 // Start server
 async function start() {
   if (process.env.NODE_ENV !== 'production') {
@@ -1188,12 +1328,34 @@ async function start() {
       server: { middlewareMode: true },
       appType: 'spa',
     });
+
+    // Intercept HTML pages to inject dynamic SEO metadata and canonical tags
+    app.get(['/', '/article/:slug', '/author/:id'], async (req, res, next) => {
+      try {
+        const indexPath = path.resolve(process.cwd(), 'index.html');
+        const rawHtml = fs.readFileSync(indexPath, 'utf-8');
+        const seoHtml = renderHtmlWithSeo(req.path, rawHtml);
+        const transformedHtml = await vite.transformIndexHtml(req.originalUrl, seoHtml);
+        res.status(200).set({ 'Content-Type': 'text/html; charset=utf-8' }).end(transformedHtml);
+      } catch (e) {
+        next(e);
+      }
+    });
+
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, { index: false }));
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      const indexPath = path.join(distPath, 'index.html');
+      let rawHtml = '';
+      try {
+        rawHtml = fs.readFileSync(indexPath, 'utf-8');
+      } catch {
+        rawHtml = '<!doctype html><html><head><title>iamquickagent.com</title></head><body><div id="root"></div></body></html>';
+      }
+      const seoHtml = renderHtmlWithSeo(req.path, rawHtml);
+      res.status(200).set({ 'Content-Type': 'text/html; charset=utf-8' }).end(seoHtml);
     });
   }
 
@@ -1203,3 +1365,4 @@ async function start() {
 }
 
 start();
+

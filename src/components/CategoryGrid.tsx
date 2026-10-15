@@ -145,13 +145,19 @@ export const CategoryGrid: React.FC<CategoryGridProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4 transition-all">
         {displayedCategories.map((cat) => {
           const isSelected = activeCategory.toLowerCase() === (cat.name || cat.id).toLowerCase();
+          const catKey = cat.name || cat.id;
 
           return (
-            <button
+            <a
               key={cat.id}
-              type="button"
-              onClick={() => handleCategoryClick(cat.name || cat.id)}
-              className={`flex flex-col text-left group cursor-pointer rounded-xl border overflow-hidden shadow-xs hover:shadow-md transition-all ${
+              href={`/?category=${encodeURIComponent(catKey)}`}
+              onClick={(e) => {
+                if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                  e.preventDefault();
+                  handleCategoryClick(catKey);
+                }
+              }}
+              className={`flex flex-col text-left group cursor-pointer rounded-xl border overflow-hidden shadow-xs hover:shadow-md transition-all focus:outline-hidden ${
                 isSelected
                   ? 'border-red-600 ring-2 ring-red-500/30 bg-red-50/20'
                   : 'bg-white border-slate-200 hover:border-slate-300'
@@ -185,7 +191,7 @@ export const CategoryGrid: React.FC<CategoryGridProps> = ({
                   {cat.subtext}
                 </div>
               </div>
-            </button>
+            </a>
           );
         })}
       </div>

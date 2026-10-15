@@ -14,10 +14,16 @@ export const StackedStories: React.FC<StackedStoriesProps> = ({
   return (
     <div className="space-y-3 sm:space-y-4">
       {articles.map((art) => (
-        <div
+        <a
           key={art.id}
-          onClick={() => onSelectArticle(art)}
-          className="flex items-start gap-3 sm:gap-4 p-2 sm:p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all cursor-pointer group"
+          href={`/article/${art.slug}`}
+          onClick={(e) => {
+            if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+              e.preventDefault();
+              onSelectArticle(art);
+            }
+          }}
+          className="flex items-start gap-3 sm:gap-4 p-2 sm:p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all cursor-pointer group text-left focus:outline-hidden"
         >
           {/* Thumbnail Image */}
           <div className="w-24 sm:w-28 md:w-32 h-20 sm:h-22 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100">
@@ -51,7 +57,7 @@ export const StackedStories: React.FC<StackedStoriesProps> = ({
               {art.deck}
             </p>
           </div>
-        </div>
+        </a>
       ))}
     </div>
   );

@@ -83,25 +83,38 @@ export const TrendingColumn: React.FC<TrendingColumnProps> = ({
               <span>{insightArticle.readTimeMinutes || 5} min read</span>
             </div>
 
-            <h4
-              onClick={() => onSelectArticle(insightArticle)}
-              className="text-base font-bold font-serif text-slate-950 group-hover:text-red-700 transition-colors cursor-pointer leading-snug"
-            >
-              {insightArticle.headline}
+            <h4 className="text-base font-bold font-serif text-slate-950 group-hover:text-red-700 transition-colors leading-snug">
+              <a
+                href={`/article/${insightArticle.slug}`}
+                onClick={(e) => {
+                  if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                    e.preventDefault();
+                    onSelectArticle(insightArticle);
+                  }
+                }}
+                className="hover:underline focus:outline-hidden"
+              >
+                {insightArticle.headline}
+              </a>
             </h4>
 
             <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
               {insightArticle.deck}
             </p>
 
-            <button
-              type="button"
-              onClick={() => onSelectArticle(insightArticle)}
-              className="pt-2 text-xs font-bold text-red-700 hover:text-red-800 inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+            <a
+              href={`/article/${insightArticle.slug}`}
+              onClick={(e) => {
+                if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                  e.preventDefault();
+                  onSelectArticle(insightArticle);
+                }
+              }}
+              className="pt-2 text-xs font-bold text-red-700 hover:text-red-800 inline-flex items-center gap-1.5 cursor-pointer transition-colors focus:outline-hidden"
             >
               <span>Read More</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-            </button>
+            </a>
           </div>
         </div>
       )}

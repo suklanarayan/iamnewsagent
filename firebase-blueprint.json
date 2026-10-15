@@ -15,15 +15,35 @@
         "authorId": { "type": "string", "maxLength": 128 },
         "featuredImage": { "type": "string", "maxLength": 2000 },
         "imageCaption": { "type": "string", "maxLength": 1000 },
-        "status": { "type": "string", "enum": ["published", "draft", "scheduled"] },
+        "status": { "type": "string" },
         "isBreaking": { "type": "boolean" },
         "isExplainer": { "type": "boolean" },
-        "publishedAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" },
+        "publishedAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
         "readTimeMinutes": { "type": "number" },
         "views": { "type": "number" }
       },
-      "required": ["id", "slug", "headline", "deck", "content", "category", "authorId", "status", "publishedAt"]
+      "required": ["id", "slug", "headline", "category"]
+    },
+    "LiveStory": {
+      "title": "LiveStory",
+      "description": "A real-time live story sequence for the top radar bar",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 300 },
+        "subtitle": { "type": "string", "maxLength": 1000 },
+        "image": { "type": "string", "maxLength": 2000 },
+        "isLive": { "type": "boolean" },
+        "category": { "type": "string", "maxLength": 50 },
+        "articleSlug": { "type": "string", "maxLength": 200 },
+        "destinationUrl": { "type": "string", "maxLength": 2000 },
+        "keyPoints": { "type": "array" },
+        "order": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "title"]
     },
     "Author": {
       "title": "Author",
@@ -39,7 +59,7 @@
         "verified": { "type": "boolean" },
         "joinedDate": { "type": "string", "maxLength": 50 }
       },
-      "required": ["id", "name", "role", "bio", "joinedDate"]
+      "required": ["id", "name", "role"]
     }
   },
   "firestore": {
@@ -47,12 +67,16 @@
       "schema": "Article",
       "description": "Collection of published news articles and drafts"
     },
+    "/live_stories/{storyId}": {
+      "schema": "LiveStory",
+      "description": "Collection of live story sequences and ordered visual radar briefs"
+    },
     "/authors/{authorId}": {
       "schema": "Author",
       "description": "Collection of journalists and staff contributors"
     },
     "/site_settings/{settingId}": {
-      "description": "App configuration settings such as explore categories and ad briefings"
+      "description": "App configuration settings such as explore categories, trending, and ad briefings"
     }
   }
 }

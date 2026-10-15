@@ -7,6 +7,8 @@ import {
   getArticleBySlug,
   incrementArticleViews,
   getStorageStatus,
+  subscribeToLiveStories,
+  subscribeToArticles,
 } from './services/articleRepository';
 import { Header } from './components/Header';
 import { BreakingTicker } from './components/BreakingTicker';
@@ -59,22 +61,49 @@ export default function App() {
     loadData();
   }, [loadData]);
 
-  // Real-time synchronization listeners: auto-refresh feed whenever news is published or modified
+  // Real-time synchronization listeners across devices (mobile + desktop live sync)
   useEffect(() => {
     const handleNewsChange = () => {
       loadData();
     };
+
+    // 1. Instant cross-device Firestore real-time snapshot subscribers
+    const unsubStories = subscribeToLiveStories((updatedStories) => {
+      setLiveStories(updatedStories);
+    });
+    const unsubArticles = subscribeToArticles((updatedArticles) => {
+      setArticles(updatedArticles);
+    });
+
+    // 2. Local window events and mobile wake-up listeners
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadData();
+      }
+    };
+
     window.addEventListener('articles-updated', handleNewsChange);
     window.addEventListener('news-data-changed', handleNewsChange);
     window.addEventListener('live-stories-updated', handleNewsChange);
     window.addEventListener('storage', handleNewsChange);
     window.addEventListener('focus', handleNewsChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // 3. Periodic cloud sync fallback (every 25 seconds) to ensure mobile never falls behind
+    const intervalId = setInterval(() => {
+      loadData();
+    }, 25000);
+
     return () => {
+      if (unsubStories) unsubStories();
+      if (unsubArticles) unsubArticles();
       window.removeEventListener('articles-updated', handleNewsChange);
       window.removeEventListener('news-data-changed', handleNewsChange);
       window.removeEventListener('live-stories-updated', handleNewsChange);
       window.removeEventListener('storage', handleNewsChange);
       window.removeEventListener('focus', handleNewsChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(intervalId);
     };
   }, [loadData]);
 

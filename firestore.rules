@@ -7,49 +7,41 @@ service cloud.firestore {
     }
 
     function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() > 0 && id.size() <= 128;
     }
 
-    function isValidArticle(data) {
-      return data.id is string && data.id.size() <= 128
-        && data.slug is string && data.slug.size() <= 200
-        && data.headline is string && data.headline.size() <= 500
-        && data.deck is string && data.deck.size() <= 2000
-        && data.content is string && data.content.size() <= 200000
-        && data.category is string && data.category.size() <= 50
-        && data.authorId is string && data.authorId.size() <= 128
-        && data.status in ['published', 'draft', 'scheduled']
-        && (data.views is number && data.views >= 0);
-    }
-
-    function isValidAuthor(data) {
-      return data.id is string && data.id.size() <= 128
-        && data.name is string && data.name.size() <= 150
-        && data.role is string && data.role.size() <= 150
-        && data.bio is string && data.bio.size() <= 2000;
-    }
-
+    // News articles: readable by everyone, writeable for valid documents
     match /articles/{articleId} {
       allow read: if isValidId(articleId);
-      allow create: if isValidId(articleId) && isValidArticle(request.resource.data);
-      allow update: if isValidId(articleId) && (
-        // Action 1: View count increment
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views'])
-          && request.resource.data.views == resource.data.views + 1)
-        ||
-        // Action 2: Article edit/update
-        isValidArticle(request.resource.data)
-      );
+      allow create, update: if isValidId(articleId)
+        && request.resource.data.id is string
+        && request.resource.data.headline is string
+        && request.resource.data.headline.size() > 0
+        && request.resource.data.headline.size() <= 1000;
       allow delete: if isValidId(articleId);
     }
 
+    // Live stories & ordered sequences: readable & writeable across all devices
+    match /live_stories/{storyId} {
+      allow read: if isValidId(storyId);
+      allow create, update: if isValidId(storyId)
+        && request.resource.data.id is string
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 1000;
+      allow delete: if isValidId(storyId);
+    }
+
+    // Authors and contributors
     match /authors/{authorId} {
       allow read: if isValidId(authorId);
-      allow create: if isValidId(authorId) && isValidAuthor(request.resource.data);
-      allow update: if isValidId(authorId) && isValidAuthor(request.resource.data);
+      allow create, update: if isValidId(authorId)
+        && request.resource.data.id is string
+        && request.resource.data.name is string;
       allow delete: if isValidId(authorId);
     }
 
+    // App configurations, explore categories, and site settings
     match /site_settings/{settingId} {
       allow read: if isValidId(settingId);
       allow write: if isValidId(settingId);

@@ -9,10 +9,26 @@ import {
   query,
   orderBy,
   limit,
+  onSnapshot,
+  type Unsubscribe,
 } from 'firebase/firestore';
 import { getFirestoreDb, getSavedFirebaseConfig } from './firebase';
 import { SEED_ARTICLES, SEED_AUTHORS, SEED_LIVE_STORIES } from '../data/seedData';
 import type { Article, Author, LiveStory } from '../types';
+
+export function sanitizeForFirestore<T extends Record<string, any>>(obj: T): Record<string, any> {
+  const clean: Record<string, any> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (val !== undefined) {
+      if (val && typeof val === 'object' && !Array.isArray(val) && !(val instanceof Date)) {
+        clean[key] = sanitizeForFirestore(val);
+      } else {
+        clean[key] = val;
+      }
+    }
+  }
+  return clean;
+}
 
 const ARTICLES_STORAGE_KEY = 'iamquickagent_articles_v2';
 const AUTHORS_STORAGE_KEY = 'iamquickagent_authors_v2';
@@ -249,11 +265,13 @@ export async function getArticles(filter?: {
           if (!firestoreIds.has(localArt.id)) {
             list.unshift(localArt);
             firestoreIds.add(localArt.id);
+            setDoc(doc(db, 'articles', localArt.id), sanitizeForFirestore(localArt)).catch(console.warn);
           } else {
             const fsIdx = list.findIndex((a) => a.id === localArt.id);
             if (fsIdx !== -1 && localArt.updatedAt && list[fsIdx].updatedAt) {
               if (new Date(localArt.updatedAt).getTime() > new Date(list[fsIdx].updatedAt).getTime()) {
                 list[fsIdx] = localArt;
+                setDoc(doc(db, 'articles', localArt.id), sanitizeForFirestore(localArt), { merge: true }).catch(console.warn);
               }
             }
           }
@@ -264,10 +282,12 @@ export async function getArticles(filter?: {
         setLocalArticles(list); // Keep local backup synced
       } else {
         // If Firestore collection is empty, seed it with initial articles
-        for (const art of SEED_ARTICLES) {
-          await setDoc(doc(db, 'articles', art.id), art);
+        const local = getLocalArticles();
+        const toSeed = local.length > 0 ? local : SEED_ARTICLES;
+        for (const art of toSeed) {
+          await setDoc(doc(db, 'articles', art.id), sanitizeForFirestore(art));
         }
-        list = SEED_ARTICLES;
+        list = toSeed;
         setLocalArticles(list);
       }
     } catch (e) {
@@ -350,7 +370,7 @@ export async function createArticle(
   const db = getFirestoreDb();
   if (db) {
     try {
-      await setDoc(doc(db, 'articles', id), newArticle);
+      await setDoc(doc(db, 'articles', id), sanitizeForFirestore(newArticle));
     } catch (e) {
       console.error('Failed saving to Firestore:', e);
     }
@@ -393,11 +413,8 @@ export async function updateArticle(
   if (db) {
     try {
       const docRef = doc(db, 'articles', id);
-      await updateDoc(docRef, {
-        ...updates,
-        publishedAt: updatedArticle.publishedAt,
-        updatedAt: updatedArticle.updatedAt,
-      });
+      const cleanData = sanitizeForFirestore(updatedArticle);
+      await setDoc(docRef, cleanData, { merge: true });
     } catch (e) {
       console.error('Failed updating Firestore doc:', e);
     }
@@ -658,32 +675,33 @@ export async function getLiveStories(): Promise<LiveStory[]> {
           if (story.id === 'story-brics-2026') {
             if (!story.image || story.image.includes('photo-1517976487502-5f7140e4f3a9')) {
               story.image = '/brics-2026-summit.svg';
-              updateDoc(doc(db, 'live_stories', story.id), { image: '/brics-2026-summit.svg' }).catch(console.warn);
+              setDoc(doc(db, 'live_stories', story.id), { image: '/brics-2026-summit.svg' }, { merge: true }).catch(console.warn);
             }
           }
           for (const [badKey, goodUrl] of Object.entries(BROKEN_IMAGE_HEALING_MAP)) {
             if (story.image && story.image.includes(badKey)) {
               story.image = goodUrl;
-              updateDoc(doc(db, 'live_stories', story.id), { image: goodUrl }).catch(console.warn);
+              setDoc(doc(db, 'live_stories', story.id), { image: goodUrl }, { merge: true }).catch(console.warn);
             }
           }
         }
 
-        // Merge any missing seed stories into Firestore
-        for (const seedStory of SEED_LIVE_STORIES) {
-          if (!stories.some((s) => s.id === seedStory.id)) {
-            stories.push(seedStory);
-            setDoc(doc(db, 'live_stories', seedStory.id), seedStory).catch(console.warn);
-          }
-        }
-
-        // Merge any locally created live stories that haven't synced to Firestore yet
+        // Merge any locally created live stories from desktop that haven't synced to Firestore yet
         const localStories = getLocalLiveStories();
         const firestoreIds = new Set(stories.map(s => s.id));
         for (const localStory of localStories) {
           if (!firestoreIds.has(localStory.id)) {
             stories.push(localStory);
             firestoreIds.add(localStory.id);
+            setDoc(doc(db, 'live_stories', localStory.id), sanitizeForFirestore(localStory)).catch(console.warn);
+          } else {
+            const fsIdx = stories.findIndex(s => s.id === localStory.id);
+            if (fsIdx !== -1 && localStory.updatedAt && stories[fsIdx].updatedAt) {
+              if (new Date(localStory.updatedAt).getTime() > new Date(stories[fsIdx].updatedAt).getTime()) {
+                stories[fsIdx] = localStory;
+                setDoc(doc(db, 'live_stories', localStory.id), sanitizeForFirestore(localStory), { merge: true }).catch(console.warn);
+              }
+            }
           }
         }
 
@@ -696,10 +714,14 @@ export async function getLiveStories(): Promise<LiveStory[]> {
         setLocalLiveStories(sorted);
         return sorted;
       } else {
-        // Seed Firestore with initial live stories with explicit order
-        const seeded = SEED_LIVE_STORIES.map((s, idx) => ({ ...s, order: idx }));
+        // If Firestore is empty, seed it with the latest local stories (or seed stories)
+        const local = getLocalLiveStories();
+        const seeded = (local && local.length > 0 ? local : SEED_LIVE_STORIES).map((s, idx) => ({
+          ...s,
+          order: typeof s.order === 'number' ? s.order : idx,
+        }));
         for (const story of seeded) {
-          await setDoc(doc(db, 'live_stories', story.id), story);
+          await setDoc(doc(db, 'live_stories', story.id), sanitizeForFirestore(story), { merge: true });
         }
         setLocalLiveStories(seeded);
         return seeded;
@@ -744,17 +766,15 @@ export async function createLiveStory(
 
   setLocalLiveStories(updatedStories);
 
-  // Sync to Firestore
+  // Sync to Firestore immediately with setDoc merge
   const db = getFirestoreDb();
   if (db) {
     try {
-      await setDoc(doc(db, 'live_stories', id), newStory);
-      // Update order on all stories in Firestore
-      for (const story of updatedStories) {
-        if (story.id !== id) {
-          updateDoc(doc(db, 'live_stories', story.id), { order: story.order }).catch(console.warn);
-        }
-      }
+      await Promise.all(
+        updatedStories.map((story) =>
+          setDoc(doc(db, 'live_stories', story.id), sanitizeForFirestore(story), { merge: true })
+        )
+      );
     } catch (e) {
       console.error('Failed saving live story to Firestore:', e);
     }
@@ -810,11 +830,11 @@ export async function updateLiveStory(
   const db = getFirestoreDb();
   if (db) {
     try {
-      await setDoc(doc(db, 'live_stories', id), updatedStory, { merge: true });
-      // If position changed, update order for affected stories in Firestore
-      for (const s of updatedList) {
-        updateDoc(doc(db, 'live_stories', s.id), { order: s.order }).catch(console.warn);
-      }
+      await Promise.all(
+        updatedList.map((story) =>
+          setDoc(doc(db, 'live_stories', story.id), sanitizeForFirestore(story), { merge: true })
+        )
+      );
     } catch (e) {
       console.error('Failed updating live story in Firestore:', e);
     }
@@ -856,9 +876,10 @@ export async function moveLiveStory(
   const [removed] = updated.splice(index, 1);
   updated.splice(targetIndex, 0, removed);
 
-  // Re-index
+  const now = new Date().toISOString();
   updated.forEach((s, idx) => {
     s.order = idx;
+    s.updatedAt = now;
   });
 
   setLocalLiveStories(updated);
@@ -866,9 +887,11 @@ export async function moveLiveStory(
   const db = getFirestoreDb();
   if (db) {
     try {
-      for (const s of updated) {
-        updateDoc(doc(db, 'live_stories', s.id), { order: s.order }).catch(console.warn);
-      }
+      await Promise.all(
+        updated.map((s) =>
+          setDoc(doc(db, 'live_stories', s.id), sanitizeForFirestore(s), { merge: true })
+        )
+      );
     } catch (e) {
       console.warn('Firestore sync order warning:', e);
     }
@@ -900,8 +923,10 @@ export async function reorderLiveStoryToPosition(
   const [removed] = updated.splice(index, 1);
   updated.splice(safePos, 0, removed);
 
+  const now = new Date().toISOString();
   updated.forEach((s, idx) => {
     s.order = idx;
+    s.updatedAt = now;
   });
 
   setLocalLiveStories(updated);
@@ -909,9 +934,11 @@ export async function reorderLiveStoryToPosition(
   const db = getFirestoreDb();
   if (db) {
     try {
-      for (const s of updated) {
-        updateDoc(doc(db, 'live_stories', s.id), { order: s.order }).catch(console.warn);
-      }
+      await Promise.all(
+        updated.map((s) =>
+          setDoc(doc(db, 'live_stories', s.id), sanitizeForFirestore(s), { merge: true })
+        )
+      );
     } catch (e) {
       console.warn('Firestore sync order warning:', e);
     }
@@ -943,9 +970,11 @@ export async function deleteLiveStory(id: string): Promise<boolean> {
   if (db) {
     try {
       await deleteDoc(doc(db, 'live_stories', id));
-      for (const s of filtered) {
-        updateDoc(doc(db, 'live_stories', s.id), { order: s.order }).catch(console.warn);
-      }
+      await Promise.all(
+        filtered.map((s) =>
+          setDoc(doc(db, 'live_stories', s.id), sanitizeForFirestore(s), { merge: true })
+        )
+      );
     } catch (e) {
       console.error('Failed deleting live story from Firestore:', e);
     }
@@ -970,4 +999,67 @@ export async function toggleLiveStoryStatus(id: string): Promise<boolean> {
   const newIsLive = !story.isLive;
   await updateLiveStory(id, { isLive: newIsLive });
   return newIsLive;
+}
+
+/**
+ * Real-time listener for Live Stories (Cross-Device Instant Sync between Desktop and Mobile)
+ */
+export function subscribeToLiveStories(callback: (stories: LiveStory[]) => void): Unsubscribe | null {
+  const db = getFirestoreDb();
+  if (!db) return null;
+  try {
+    const colRef = collection(db, 'live_stories');
+    return onSnapshot(
+      colRef,
+      (snap) => {
+        if (!snap.empty) {
+          const stories = snap.docs.map((d) => ({
+            id: d.id,
+            ...(d.data() as Omit<LiveStory, 'id'>),
+          }));
+          const sorted = sortStoriesByOrder(stories);
+          sorted.forEach((s, idx) => {
+            s.order = idx;
+          });
+          setLocalLiveStories(sorted);
+          callback(sorted);
+        }
+      },
+      (err) => {
+        console.warn('Live stories onSnapshot error:', err);
+      }
+    );
+  } catch (e) {
+    console.warn('Failed subscribing to live stories:', e);
+    return null;
+  }
+}
+
+/**
+ * Real-time listener for Articles (Cross-Device Instant Sync)
+ */
+export function subscribeToArticles(callback: (articles: Article[]) => void): Unsubscribe | null {
+  const db = getFirestoreDb();
+  if (!db) return null;
+  try {
+    const colRef = collection(db, 'articles');
+    const q = query(colRef, orderBy('publishedAt', 'desc'), limit(100));
+    return onSnapshot(
+      q,
+      (snap) => {
+        if (!snap.empty) {
+          const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Article, 'id'>) }));
+          list.sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
+          setLocalArticles(list);
+          callback(list);
+        }
+      },
+      (err) => {
+        console.warn('Articles onSnapshot error:', err);
+      }
+    );
+  } catch (e) {
+    console.warn('Failed subscribing to articles:', e);
+    return null;
+  }
 }

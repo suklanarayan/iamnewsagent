@@ -135,6 +135,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
     (a) => a.id !== heroArticle?.id && !stackedArticles.some((s) => s.id === a.id)
   );
 
+  // For Grid, List, and Compact Wire modes: show curated top 9 items when collapsed, all items when View All is active
+  const activeModeArticles =
+    isViewingAllTopStories
+      ? displayArticles
+      : displayArticles.slice(0, 9);
+
   // Today's Insight article (Durga Puja explainer or first explainer)
   const insightArticle =
     articles.find((a) => a.slug === 'durga-puja-2025-tradition-culture-modern-kolkata') ||
@@ -250,7 +256,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   };
 
   return (
-    <div className="bg-white text-slate-900 pb-16 space-y-8 sm:space-y-10">
+    <div className="bg-white text-slate-900 pb-12 sm:pb-16 space-y-4 sm:space-y-8 lg:space-y-10">
       {/* 1. HERO SEARCH & BRAND BANNER (GOOGLE SEARCH TYPE VIEW) */}
       <HeroSearchBanner
         onSearchSubmit={handleHeroSearch}
@@ -266,7 +272,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       />
 
       {/* 3. MAIN CONTENT CONTAINER */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-12 sm:space-y-14">
+      <div className="max-w-7xl mx-auto px-3.5 sm:px-6 space-y-7 sm:space-y-10 lg:space-y-12">
         {/* ACTIVE CATEGORY BANNER (If user navigated to a category or clicked View All on a section) */}
         {activeCategory !== 'all' && (
           <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
@@ -525,7 +531,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* VIEW MODE 2: RESPONSIVE CARDS GRID VIEW */}
           {viewMode === 'grid' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-200">
-              {displayArticles.map((art) => (
+              {activeModeArticles.map((art) => (
                 <article
                   key={art.id}
                   onClick={() => onSelectArticle(art)}
@@ -599,7 +605,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* VIEW MODE 3: HORIZONTAL EDITORIAL LIST VIEW */}
           {viewMode === 'list' && (
             <div className="space-y-4 animate-in fade-in duration-200">
-              {displayArticles.map((art) => (
+              {activeModeArticles.map((art) => (
                 <article
                   key={art.id}
                   onClick={() => onSelectArticle(art)}
@@ -660,7 +666,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* VIEW MODE 4: COMPACT DIGITAL WIRE ROWS */}
           {viewMode === 'compact' && (
             <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden shadow-xs animate-in fade-in duration-200">
-              {displayArticles.map((art, idx) => (
+              {activeModeArticles.map((art, idx) => (
                 <div
                   key={art.id}
                   onClick={() => onSelectArticle(art)}
@@ -771,14 +777,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <ExplainersRow
               explainers={explainers}
               onSelectArticle={onSelectArticle}
-              onViewAllExplainers={() => {
-                onSelectCategory('Explainers');
-                setIsViewingAllTopStories(true);
-                const el = document.getElementById('top-stories-section');
-                if (el) {
-                  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-              }}
             />
           </div>
 
@@ -787,13 +785,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <OpinionsColumn
               opinions={SEED_OPINIONS}
               onSelectOpinion={handleSelectOpinion}
-              onViewAllOpinions={() => {
-                onSelectCategory('Opinion');
-                const el = document.getElementById('top-stories-section');
-                if (el) {
-                  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-              }}
             />
 
             <NewsletterBox />

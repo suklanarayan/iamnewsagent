@@ -68,7 +68,18 @@ export const TopStoryHero: React.FC<TopStoryHeroProps> = ({
           </div>
 
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-serif text-slate-950 group-hover:text-red-700 transition-colors leading-[1.18] [text-wrap:balance]">
-            {article.headline}
+            <a
+              href={`/article/${article.slug}`}
+              onClick={(e) => {
+                if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                  e.preventDefault();
+                  onSelectArticle(article);
+                }
+              }}
+              className="hover:underline focus:outline-hidden"
+            >
+              {article.headline}
+            </a>
           </h2>
 
           <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
@@ -123,10 +134,19 @@ export const TopStoryHero: React.FC<TopStoryHeroProps> = ({
 
       {/* Read full article prompt */}
       <div className="px-4 sm:px-6 pb-5 pt-1">
-        <span className="text-xs font-bold text-red-700 group-hover:text-red-800 inline-flex items-center gap-1.5">
+        <a
+          href={`/article/${article.slug}`}
+          onClick={(e) => {
+            if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+              e.preventDefault();
+              onSelectArticle(article);
+            }
+          }}
+          className="text-xs font-bold text-red-700 group-hover:text-red-800 inline-flex items-center gap-1.5 focus:outline-hidden"
+        >
           <span>Read Full Intelligence Dispatch</span>
           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-        </span>
+        </a>
       </div>
     </article>
   );
