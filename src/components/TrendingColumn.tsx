@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowUpRight, ArrowRight, Sparkles } from 'lucide-react';
 import type { TrendingItem, Article } from '../types';
 import { NewsImage } from './NewsImage';
+import { formatTimeAgo } from '../utils/statusUtils';
 
 interface TrendingColumnProps {
   trending: TrendingItem[];
@@ -79,6 +80,8 @@ export const TrendingColumn: React.FC<TrendingColumnProps> = ({
               <span className="font-bold text-amber-700 uppercase tracking-wider">
                 EXPLAINER BRIEF
               </span>
+              <span aria-hidden="true" className="text-slate-300">·</span>
+              <span>{formatTimeAgo(insightArticle.publishedAt)}</span>
               <span aria-hidden="true" className="text-slate-300">·</span>
               <span>{insightArticle.readTimeMinutes || 5} min read</span>
             </div>

@@ -10,9 +10,9 @@ service cloud.firestore {
       return id is string && id.size() > 0 && id.size() <= 128;
     }
 
-    // News articles: readable by everyone, writeable for valid documents
+    // Public News Articles: readable by public (get and list queries for readers on desktop & mobile)
     match /articles/{articleId} {
-      allow read: if isValidId(articleId);
+      allow get, list: if true;
       allow create, update: if isValidId(articleId)
         && request.resource.data.id is string
         && request.resource.data.headline is string
@@ -21,9 +21,9 @@ service cloud.firestore {
       allow delete: if isValidId(articleId);
     }
 
-    // Live stories & ordered sequences: readable & writeable across all devices
+    // Live stories & ordered sequences: readable by public across all devices
     match /live_stories/{storyId} {
-      allow read: if isValidId(storyId);
+      allow get, list: if true;
       allow create, update: if isValidId(storyId)
         && request.resource.data.id is string
         && request.resource.data.title is string
@@ -34,7 +34,7 @@ service cloud.firestore {
 
     // Authors and contributors
     match /authors/{authorId} {
-      allow read: if isValidId(authorId);
+      allow get, list: if true;
       allow create, update: if isValidId(authorId)
         && request.resource.data.id is string
         && request.resource.data.name is string;
@@ -43,7 +43,7 @@ service cloud.firestore {
 
     // App configurations, explore categories, and site settings
     match /site_settings/{settingId} {
-      allow read: if isValidId(settingId);
+      allow get, list: if true;
       allow write: if isValidId(settingId);
     }
   }

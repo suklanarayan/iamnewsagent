@@ -33,6 +33,7 @@ import {
   SEED_OPINIONS,
 } from '../data/seedData';
 import { getTrendingSettings, TrendingSettings } from '../utils/trendingManager';
+import { formatTimeAgo } from '../utils/statusUtils';
 
 export type NewsViewMode = 'bento' | 'grid' | 'list' | 'compact';
 
@@ -241,18 +242,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }
   };
 
-  // Helper to format date
+  // Helper to format date with live relative timestamp
   const formatDate = (dateStr?: string) => {
-    if (!dateStr) return 'Recent';
-    try {
-      return new Date(dateStr).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
-    } catch {
-      return 'Recent';
-    }
+    return formatTimeAgo(dateStr);
   };
 
   return (

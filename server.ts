@@ -3,7 +3,23 @@ import path from 'path';
 import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
-import { SEED_ARTICLES, SEED_AUTHORS } from './src/data/seedData';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  doc,
+  setDoc,
+  deleteDoc,
+  query,
+  orderBy,
+  limit,
+} from 'firebase/firestore';
+import firebaseConfig from './firebase-applet-config.json';
+import { SEED_ARTICLES, SEED_AUTHORS, SEED_LIVE_STORIES } from './src/data/seedData';
+
+const firebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const serverDb = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 
 const app = express();
 const PORT = 3000;
@@ -92,6 +108,206 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     hasGeminiKey: !!process.env.GEMINI_API_KEY,
   });
+});
+
+// Helper to sanitize object for Firestore writes
+function cleanFirestoreDoc(obj: Record<string, any>): Record<string, any> {
+  const clean: Record<string, any> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) {
+      if (v && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date)) {
+        clean[k] = cleanFirestoreDoc(v);
+      } else {
+        clean[k] = v;
+      }
+    }
+  }
+  return clean;
+}
+
+// ---------------------------------------------------------------------------
+// ARTICLES REST API (Guarantees 100% Desktop-Mobile Cloud Parity)
+// ---------------------------------------------------------------------------
+
+// GET /api/articles
+app.get('/api/articles', async (req, res) => {
+  try {
+    const colRef = collection(serverDb, 'articles');
+    const q = query(colRef, orderBy('publishedAt', 'desc'), limit(100));
+    const snap = await getDocs(q);
+
+    if (!snap.empty) {
+      const articles = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      return res.json(articles);
+    }
+
+    // If Firestore empty, seed it
+    for (const art of SEED_ARTICLES) {
+      await setDoc(doc(serverDb, 'articles', art.id), cleanFirestoreDoc(art));
+    }
+    return res.json(SEED_ARTICLES);
+  } catch (err: any) {
+    console.warn('Server GET /api/articles error:', err.message);
+    return res.json(SEED_ARTICLES);
+  }
+});
+
+// POST /api/articles (Create or Upsert)
+app.post('/api/articles', async (req, res) => {
+  try {
+    const data = req.body;
+    const id = data.id || 'art-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 6);
+    const now = new Date().toISOString();
+    const article = {
+      ...data,
+      id,
+      publishedAt: data.publishedAt || now,
+      updatedAt: now,
+    };
+    await setDoc(doc(serverDb, 'articles', id), cleanFirestoreDoc(article), { merge: true });
+    return res.status(201).json(article);
+  } catch (err: any) {
+    console.error('Server POST /api/articles error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/articles/:id
+app.put('/api/articles/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const updates = req.body;
+    const now = new Date().toISOString();
+    const updated = {
+      ...updates,
+      id,
+      updatedAt: now,
+    };
+    await setDoc(doc(serverDb, 'articles', id), cleanFirestoreDoc(updated), { merge: true });
+    return res.json(updated);
+  } catch (err: any) {
+    console.error('Server PUT /api/articles error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/articles/:id
+app.delete('/api/articles/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    await deleteDoc(doc(serverDb, 'articles', id));
+    return res.json({ success: true, id });
+  } catch (err: any) {
+    console.error('Server DELETE /api/articles error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// LIVE STORIES REST API (Guarantees Ordered Sequences Sync Across Devices)
+// ---------------------------------------------------------------------------
+
+// GET /api/live-stories
+app.get('/api/live-stories', async (req, res) => {
+  try {
+    const colRef = collection(serverDb, 'live_stories');
+    const snap = await getDocs(colRef);
+
+    if (!snap.empty) {
+      const stories = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[];
+      stories.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      return res.json(stories);
+    }
+
+    // If Firestore empty, seed it with ordered indices
+    const seeded = SEED_LIVE_STORIES.map((s, idx) => ({ ...s, order: idx }));
+    for (const story of seeded) {
+      await setDoc(doc(serverDb, 'live_stories', story.id), cleanFirestoreDoc(story));
+    }
+    return res.json(seeded);
+  } catch (err: any) {
+    console.warn('Server GET /api/live-stories error:', err.message);
+    return res.json(SEED_LIVE_STORIES.map((s, idx) => ({ ...s, order: idx })));
+  }
+});
+
+// POST /api/live-stories/sync-order (Batch Persist Updated Story Sequence)
+app.post('/api/live-stories/sync-order', async (req, res) => {
+  try {
+    const { stories } = req.body;
+    if (!Array.isArray(stories)) {
+      return res.status(400).json({ error: 'Expected stories array' });
+    }
+
+    const now = new Date().toISOString();
+    await Promise.all(
+      stories.map((story, idx) => {
+        const item = {
+          ...story,
+          order: idx,
+          updatedAt: now,
+        };
+        return setDoc(doc(serverDb, 'live_stories', story.id), cleanFirestoreDoc(item), { merge: true });
+      })
+    );
+
+    return res.json({ success: true, count: stories.length });
+  } catch (err: any) {
+    console.error('Server POST /api/live-stories/sync-order error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/live-stories (Create)
+app.post('/api/live-stories', async (req, res) => {
+  try {
+    const data = req.body;
+    const id = data.id || 'story-' + Date.now();
+    const now = new Date().toISOString();
+    const story = {
+      ...data,
+      id,
+      order: typeof data.order === 'number' ? data.order : 0,
+      createdAt: data.createdAt || now,
+      updatedAt: now,
+    };
+    await setDoc(doc(serverDb, 'live_stories', id), cleanFirestoreDoc(story), { merge: true });
+    return res.status(201).json(story);
+  } catch (err: any) {
+    console.error('Server POST /api/live-stories error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/live-stories/:id
+app.put('/api/live-stories/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const updates = req.body;
+    const now = new Date().toISOString();
+    const updated = {
+      ...updates,
+      id,
+      updatedAt: now,
+    };
+    await setDoc(doc(serverDb, 'live_stories', id), cleanFirestoreDoc(updated), { merge: true });
+    return res.json(updated);
+  } catch (err: any) {
+    console.error('Server PUT /api/live-stories error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/live-stories/:id
+app.delete('/api/live-stories/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    await deleteDoc(doc(serverDb, 'live_stories', id));
+    return res.json({ success: true, id });
+  } catch (err: any) {
+    console.error('Server DELETE /api/live-stories error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 // 2. Fetch live top source news from RSS
@@ -1248,7 +1464,7 @@ function renderHtmlWithSeo(urlPath: string, templateHtml: string): string {
         'articleSection': article.category,
         'author': {
           '@type': 'Person',
-          'name': article.author?.name || 'iamquickagent.com Newsroom',
+          'name': (article as any).author?.name || article.authorId || 'iamquickagent.com Newsroom',
         },
         'publisher': {
           '@type': 'NewsMediaOrganization',

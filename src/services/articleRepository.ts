@@ -203,6 +203,7 @@ export async function getArticles(filter?: {
   const db = getFirestoreDb();
   let list: Article[] = [];
 
+  // 1. Try Firestore SDK
   if (db) {
     try {
       const colRef = collection(db, 'articles');
@@ -210,90 +211,62 @@ export async function getArticles(filter?: {
       const snap = await getDocs(q);
       if (!snap.empty) {
         list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Article, 'id'>) }));
-
-        // Heal any 2025 dates in Firestore to 2026
-        for (const art of list) {
-          let needsUpdate = false;
-          let newPub = art.publishedAt;
-          let newUpd = art.updatedAt;
-          if (art.publishedAt && art.publishedAt.startsWith('2025-')) {
-            newPub = art.publishedAt.replace('2025-', '2026-');
-            needsUpdate = true;
-          }
-          if (art.updatedAt && art.updatedAt.startsWith('2025-')) {
-            newUpd = art.updatedAt.replace('2025-', '2026-');
-            needsUpdate = true;
-          }
-          if (art.headline && art.headline.toLowerCase().includes('japanese fighters') && (!art.publishedAt || art.publishedAt.includes('2025'))) {
-            newPub = '2026-09-20T09:30:00.000Z';
-            newUpd = '2026-09-20T09:30:00.000Z';
-            needsUpdate = true;
-          }
-          if (needsUpdate) {
-            art.publishedAt = newPub;
-            art.updatedAt = newUpd;
-            try {
-              updateDoc(doc(db, 'articles', art.id), {
-                publishedAt: newPub,
-                updatedAt: newUpd,
-              }).catch(() => {});
-            } catch {
-              // silent
-            }
-          }
-        }
-
-        // Ensure newest seed articles (e.g. newly published articles) exist in Firestore
-        for (const seedArt of SEED_ARTICLES) {
-          if (!list.some((a) => a.id === seedArt.id || a.slug === seedArt.slug)) {
-            try {
-              await setDoc(doc(db, 'articles', seedArt.id), seedArt);
-              list.unshift(seedArt);
-            } catch (err) {
-              console.warn('Silent sync seed article:', err);
-            }
-          }
-        }
-
-        // CRITICAL FIX: Merge freshly created/updated articles from local storage!
-        // When an article is created or published, Firestore query indexing latency
-        // can cause getDocs to temporarily omit the newly created doc.
-        // Merging local articles guarantees newly published news is NEVER lost or delayed on the front page.
-        const localList = getLocalArticles();
-        const firestoreIds = new Set(list.map((a) => a.id));
-        for (const localArt of localList) {
-          if (!firestoreIds.has(localArt.id)) {
-            list.unshift(localArt);
-            firestoreIds.add(localArt.id);
-            setDoc(doc(db, 'articles', localArt.id), sanitizeForFirestore(localArt)).catch(console.warn);
-          } else {
-            const fsIdx = list.findIndex((a) => a.id === localArt.id);
-            if (fsIdx !== -1 && localArt.updatedAt && list[fsIdx].updatedAt) {
-              if (new Date(localArt.updatedAt).getTime() > new Date(list[fsIdx].updatedAt).getTime()) {
-                list[fsIdx] = localArt;
-                setDoc(doc(db, 'articles', localArt.id), sanitizeForFirestore(localArt), { merge: true }).catch(console.warn);
-              }
-            }
-          }
-        }
-
-        // Strictly sort all articles by publication date descending (newest published first)
-        list.sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
-        setLocalArticles(list); // Keep local backup synced
-      } else {
-        // If Firestore collection is empty, seed it with initial articles
-        const local = getLocalArticles();
-        const toSeed = local.length > 0 ? local : SEED_ARTICLES;
-        for (const art of toSeed) {
-          await setDoc(doc(db, 'articles', art.id), sanitizeForFirestore(art));
-        }
-        list = toSeed;
-        setLocalArticles(list);
       }
     } catch (e) {
-      console.warn('Firestore fetch failed, falling back to local storage:', e);
-      list = getLocalArticles();
+      console.warn('Firestore articles fetch failed, falling back to server API:', e);
     }
+  }
+
+  // 2. Fallback to Server REST API (Crucial for mobile devices with privacy restrictions or slow WebSockets)
+  if (list.length === 0) {
+    try {
+      const res = await fetch('/api/articles');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          list = data;
+        }
+      }
+    } catch (e) {
+      console.warn('Server API /api/articles fetch error:', e);
+    }
+  }
+
+  if (list.length > 0) {
+    // Heal any 2025 dates to 2026
+    for (const art of list) {
+      if (art.publishedAt && art.publishedAt.startsWith('2025-')) {
+        art.publishedAt = art.publishedAt.replace('2025-', '2026-');
+      }
+      if (art.updatedAt && art.updatedAt.startsWith('2025-')) {
+        art.updatedAt = art.updatedAt.replace('2025-', '2026-');
+      }
+      if (art.headline && art.headline.toLowerCase().includes('japanese fighters')) {
+        art.publishedAt = '2026-09-20T09:30:00.000Z';
+        art.updatedAt = '2026-09-20T09:30:00.000Z';
+      }
+    }
+
+    // Merge any locally created unpublished drafts
+    const localList = getLocalArticles();
+    const firestoreIds = new Set(list.map((a) => a.id));
+    for (const localArt of localList) {
+      if (!firestoreIds.has(localArt.id)) {
+        list.unshift(localArt);
+        firestoreIds.add(localArt.id);
+        if (db) {
+          setDoc(doc(db, 'articles', localArt.id), sanitizeForFirestore(localArt)).catch(console.warn);
+        }
+        fetch('/api/articles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(localArt),
+        }).catch(console.warn);
+      }
+    }
+
+    list.sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
+    setLocalArticles(list);
   } else {
     list = getLocalArticles();
   }

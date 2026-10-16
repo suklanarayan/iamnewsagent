@@ -140,3 +140,31 @@ export function isArticlePubliclyVisible(article: Article): boolean {
 export function getStatusMeta(status: PublicationStatus = 'published'): StatusMeta {
   return PUBLICATION_STATUSES.find((s) => s.id === status) || PUBLICATION_STATUSES[0];
 }
+
+/**
+ * Format relative publication time (e.g. "Just now", "12m ago", "3h ago", "2d ago", or localized date)
+ */
+export function formatTimeAgo(dateString?: string): string {
+  if (!dateString) return 'Just now';
+  try {
+    const timestamp = new Date(dateString).getTime();
+    if (isNaN(timestamp)) return 'Recently';
+    const now = Date.now();
+    const diffSec = Math.floor((now - timestamp) / 1000);
+    if (diffSec < 60) return 'Just now';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return new Date(timestamp).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return 'Recently';
+  }
+}
+

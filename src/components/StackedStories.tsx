@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Article } from '../types';
 import { NewsImage } from './NewsImage';
+import { formatTimeAgo } from '../utils/statusUtils';
 
 interface StackedStoriesProps {
   articles: Article[];
@@ -42,11 +43,7 @@ export const StackedStories: React.FC<StackedStoriesProps> = ({
                 {art.category}
               </span>
               <span aria-hidden="true" className="text-slate-300">·</span>
-              <span>
-                {art.publishedAt
-                  ? new Date(art.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                  : 'Recent'}
-              </span>
+              <span>{formatTimeAgo(art.publishedAt)}</span>
             </div>
 
             <h4 className="text-xs sm:text-sm font-bold font-serif text-slate-900 group-hover:text-red-700 transition-colors leading-snug line-clamp-2">

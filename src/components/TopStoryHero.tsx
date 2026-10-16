@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Volume2, VolumeX, Sparkles, ArrowRight } from 'lucide-react';
 import type { Article } from '../types';
 import { NewsImage } from './NewsImage';
+import { formatTimeAgo } from '../utils/statusUtils';
 
 interface TopStoryHeroProps {
   article: Article;
@@ -62,7 +63,7 @@ export const TopStoryHero: React.FC<TopStoryHeroProps> = ({
               {article.category}
             </span>
             <span aria-hidden="true" className="text-slate-300">·</span>
-            <span>2h ago</span>
+            <span>{formatTimeAgo(article.publishedAt)}</span>
             <span aria-hidden="true" className="text-slate-300">·</span>
             <span>{article.readTimeMinutes || 4} min read</span>
           </div>

@@ -3,6 +3,7 @@ import { Clock, Eye, Sparkles, User, ArrowRight, Zap } from 'lucide-react';
 import type { Article, Author } from '../types';
 import { KeyTakeawaysBlock } from './KeyTakeawaysBlock';
 import { NewsImage } from './NewsImage';
+import { formatTimeAgo } from '../utils/statusUtils';
 
 interface ArticleCardProps {
   article: Article;
@@ -19,11 +20,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   onSelect,
   onSelectAuthor,
 }) => {
-  const formattedDate = new Date(article.publishedAt).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  const formattedDate = formatTimeAgo(article.publishedAt);
 
   // Variant 1: Breaking News Hero Card (with mandatory Key Takeaway summary block)
   if (variant === 'hero') {
