@@ -50,20 +50,37 @@ function getGenAI(): GoogleGenAI {
   return genAIClient;
 }
 
-// Helper: decode HTML entities in RSS
+// Helper: decode HTML entities in RSS and web scrapers
 function decodeHtmlEntities(str: string): string {
+  if (!str) return '';
   return str
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&#039;/g, "'")
-    .replace(/&mdash;/g, '—')
-    .replace(/&ndash;/g, '–')
-    .replace(/&hellip;/g, '…')
-    .replace(/&nbsp;/g, ' ')
+    // Decimal numeric entities (e.g. &#039;, &#39;, &#8217;)
+    .replace(/&#(\d+);/g, (_, dec) => {
+      const code = parseInt(dec, 10);
+      return !isNaN(code) ? String.fromCharCode(code) : _;
+    })
+    // Hex numeric entities (e.g. &#x27;)
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => {
+      const code = parseInt(hex, 16);
+      return !isNaN(code) ? String.fromCharCode(code) : _;
+    })
+    // Named entities
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&mdash;/gi, '—')
+    .replace(/&ndash;/gi, '–')
+    .replace(/&hellip;/gi, '…')
+    .replace(/&lsquo;/gi, '‘')
+    .replace(/&rsquo;/gi, '’')
+    .replace(/&ldquo;/gi, '“')
+    .replace(/&rdquo;/gi, '”')
+    .replace(/&trade;/gi, '™')
+    .replace(/&copy;/gi, '©')
+    .replace(/&reg;/gi, '®')
     .replace(/<!\[CDATA\[(.*?)\]\]>/gs, '$1');
 }
 
@@ -973,9 +990,25 @@ app.post('/api/news/fetch-url', async (req, res) => {
       const h1Match = /<h1[^>]*>([\s\S]*?)<\/h1>/i.exec(html);
 
       const rawTitle = ogTitleMatch ? ogTitleMatch[1] : titleMatch ? titleMatch[1] : h1Match ? h1Match[1] : '';
-      title = stripHtml(decodeHtmlEntities(rawTitle));
-      // Ignore generic 404/403 page titles
-      if (title.toLowerCase().includes('404') || title.toLowerCase().includes('not found') || title.toLowerCase().includes('blocked')) {
+      title = stripHtml(decodeHtmlEntities(rawTitle))
+        .replace(/\s*[-–—|]\s*(NDTV(\.com)?|BBC(\s+News)?|The\s+Hindu|CNN|Reuters|Times\s+of\s+India|India\s+Today|Hindustan\s+Times|Indian\s+Express|Zee\s+News|News18|ANI|Live\s*Mint).*$/i, '')
+        .replace(/^(Breaking(\s+News)?|Alert|Exclusive|Watch|Just\s+In|Live\s+Updates?):\s*/i, '')
+        .trim();
+
+      const lowerTitle = title.toLowerCase();
+      // Ignore generic bot blocks, 403s, and challenge page titles
+      if (
+        !title ||
+        lowerTitle.includes('404') ||
+        lowerTitle.includes('403') ||
+        lowerTitle.includes('not found') ||
+        lowerTitle.includes('blocked') ||
+        lowerTitle.includes('access denied') ||
+        lowerTitle.includes('robot or human') ||
+        lowerTitle.includes('cloudflare') ||
+        lowerTitle.includes('just a moment') ||
+        lowerTitle.includes('attention required')
+      ) {
         title = '';
       }
     }
@@ -986,6 +1019,12 @@ app.post('/api/news/fetch-url', async (req, res) => {
       const descMatch = /<meta\s+name=["']description["']\s+content=["']([\s\S]*?)["']/i.exec(html) ||
                         /<meta\s+property=["']og:description["']\s+content=["']([\s\S]*?)["']/i.exec(html);
       description = descMatch ? decodeHtmlEntities(descMatch[1]) : '';
+      if (description) {
+        const lowerD = description.toLowerCase();
+        if (lowerD.includes('access denied') || lowerD.includes('edgesuite') || lowerD.includes('reference #') || lowerD.includes('security check')) {
+          description = '';
+        }
+      }
     }
 
     // Extract paragraph text
@@ -996,12 +1035,18 @@ app.post('/api/news/fetch-url', async (req, res) => {
 
       while ((pMatch = pRegex.exec(html)) !== null && paragraphs.length < 35) {
         const cleanP = stripHtml(decodeHtmlEntities(pMatch[1]));
+        const lowerP = cleanP.toLowerCase();
         if (
           cleanP.length > 50 &&
-          !cleanP.toLowerCase().includes('cookie') &&
-          !cleanP.toLowerCase().includes('subscribe') &&
-          !cleanP.toLowerCase().includes('all rights reserved') &&
-          !cleanP.toLowerCase().includes('javascript is disabled')
+          !lowerP.includes('cookie') &&
+          !lowerP.includes('subscribe') &&
+          !lowerP.includes('all rights reserved') &&
+          !lowerP.includes('javascript is disabled') &&
+          !lowerP.includes('edgesuite.net') &&
+          !lowerP.includes('reference #') &&
+          !lowerP.includes('access denied') &&
+          !lowerP.includes('cloudflare') &&
+          !lowerP.includes('turn on javascript')
         ) {
           paragraphs.push(cleanP);
         }

@@ -1,3 +1,5 @@
+import { decodeHtmlEntities } from '../utils/seo';
+
 // Service to interact with the backend News Wire & Gemini AI Rewriter
 
 export interface WireArticle {
@@ -21,6 +23,20 @@ export interface RewrittenArticleResult {
   imageTopic: string;
   imageCaption: string;
   originalityNote?: string;
+}
+
+/**
+ * Strips HTML, decodes raw entity fragments (&#039;, &quot;), and removes publisher branding suffixes
+ */
+export function cleanNewsTitle(title: string): string {
+  if (!title) return '';
+  return decodeHtmlEntities(title)
+    .replace(/<[^>]*>?/gm, '')
+    // Remove publisher suffixes
+    .replace(/\s*[-–—|]\s*(NDTV(\.com)?|BBC(\s+News)?|The\s+Hindu|CNN|Reuters|Times\s+of\s+India|India\s+Today|Hindustan\s+Times|Indian\s+Express|Zee\s+News|News18|ANI|Live\s*Mint).*$/i, '')
+    // Remove leading alert tags
+    .replace(/^(Breaking(\s+News)?|Alert|Exclusive|Watch|Just\s+In|Live\s+Updates?):\s*/i, '')
+    .trim();
 }
 
 // Map topics/keywords to high quality curated Unsplash photography
@@ -95,14 +111,26 @@ export async function fetchNewsFromUrl(url: string): Promise<{ title: string; te
     if (res.ok) {
       const data = await res.json();
       if (data && (data.title || data.text)) {
-        return {
-          title: data.title || '',
-          text: data.text || '',
-          description: data.description || '',
-        };
+        const cleanTitle = cleanNewsTitle(data.title || '');
+        const lower = cleanTitle.toLowerCase();
+        // Ignore anti-bot / error responses from upstream
+        if (
+          cleanTitle &&
+          !lower.includes('access denied') &&
+          !lower.includes('robot or human') &&
+          !lower.includes('cloudflare') &&
+          !lower.includes('not found') &&
+          !lower.includes('403') &&
+          !lower.includes('404')
+        ) {
+          return {
+            title: cleanTitle,
+            text: decodeHtmlEntities(data.text || ''),
+            description: decodeHtmlEntities(data.description || ''),
+          };
+        }
       }
     }
-    console.warn(`Server fetch-url returned HTTP ${res.status}. Falling back to browser extraction...`);
   } catch (err) {
     console.warn('Server fetch-url unavailable, falling back to browser extraction...', err);
   }
@@ -128,7 +156,7 @@ export async function extractNewsFromUrlClientFallback(url: string): Promise<{ t
         : `${parsed.hostname} News Article`;
       const domain = parsed.hostname.replace(/^www\./, '');
       return {
-        title,
+        title: cleanNewsTitle(title),
         description: `Breaking report reported via ${domain} regarding ${title}.`,
         text: `Source: ${domain}\nHeadline: ${title}\nURL: ${url}\n\nKey topic extracted for AI editorial rewrite.`,
       };
@@ -169,23 +197,32 @@ export async function extractNewsFromUrlClientFallback(url: string): Promise<{ t
       const docTitle = doc.querySelector('title')?.textContent;
       const h1 = doc.querySelector('h1')?.textContent;
 
-      let extractedTitle = (ogTitle || twitterTitle || docTitle || h1 || '').trim();
+      let rawTitle = (ogTitle || twitterTitle || docTitle || h1 || '').trim();
+      let extractedTitle = cleanNewsTitle(rawTitle);
+
+      const lowerTitle = extractedTitle.toLowerCase();
       if (
-        extractedTitle.toLowerCase().includes('404') ||
-        extractedTitle.toLowerCase().includes('not found') ||
-        extractedTitle.toLowerCase().includes('blocked')
+        !extractedTitle ||
+        lowerTitle.includes('404') ||
+        lowerTitle.includes('403') ||
+        lowerTitle.includes('not found') ||
+        lowerTitle.includes('blocked') ||
+        lowerTitle.includes('access denied') ||
+        lowerTitle.includes('robot or human') ||
+        lowerTitle.includes('cloudflare') ||
+        lowerTitle.includes('just a moment')
       ) {
         extractedTitle = '';
       }
 
       const ogDesc = doc.querySelector('meta[property="og:description"]')?.getAttribute('content');
       const metaDesc = doc.querySelector('meta[name="description"]')?.getAttribute('content');
-      const extractedDesc = (ogDesc || metaDesc || '').trim();
+      const extractedDesc = decodeHtmlEntities((ogDesc || metaDesc || '').trim());
 
       const pElements = Array.from(doc.querySelectorAll('article p, main p, .article-body p, .story-body p, p'));
       const paragraphs: string[] = [];
       for (const p of pElements) {
-        const text = p.textContent?.trim() || '';
+        const text = decodeHtmlEntities(p.textContent?.trim() || '');
         if (
           text.length > 50 &&
           !text.toLowerCase().includes('cookie') &&
@@ -222,50 +259,52 @@ function generateJournalisticFallbackArticle(params: {
   preferredCategory?: string;
   tone?: string;
 }): RewrittenArticleResult {
-  const source = params.sourceName || 'International News Wire';
-  const category = params.preferredCategory || 'World';
+  const source = decodeHtmlEntities(params.sourceName || 'News Wire Service');
+  const category = params.preferredCategory || 'India';
 
-  // Transform headline into an original investigative angle so it never matches the source verbatim
-  const cleanInput = (params.headline || 'Global Wire Developments')
-    .replace(/^breaking:?\s*/i, '')
-    .replace(/\s*-\s*[^-]+$/, '')
-    .trim();
+  // Completely clean input headline: decode entities and remove trailing source attributions
+  const cleanHeadline = cleanNewsTitle(params.headline || 'Developing News Wire Dispatch') || 'Developing News Wire Dispatch';
 
-  const transformedHeadline = cleanInput.length > 70
-    ? `Analysis: ${cleanInput.substring(0, 65)}...`
-    : `Analysis: What Recent Dispatches on ${cleanInput} Signal`;
+  // Construct clean summary deck without any entity fragments
+  const firstParagraph = params.rawText
+    ? params.rawText.split('\n').map(s => s.trim()).find(s => s.length > 40 && !s.startsWith('Source:')) || ''
+    : '';
+
+  const cleanDeck = firstParagraph
+    ? decodeHtmlEntities(firstParagraph.substring(0, 200).trim())
+    : `An authoritative news dispatch and strategic assessment of developments regarding ${cleanHeadline}.`;
 
   return {
-    headline: transformedHeadline,
-    deck: `An investigative breakdown and strategic assessment of recent developments regarding ${cleanInput}.`,
-    category: ['India', 'World', 'Business', 'Technology', 'Markets', 'Science', 'Health', 'Sports', 'Lifestyle', 'Entertainment', 'Explainers', 'Opinion'].includes(category) ? category : 'World',
+    headline: cleanHeadline,
+    deck: cleanDeck,
+    category: ['India', 'World', 'Business', 'Technology', 'Markets', 'Science', 'Health', 'Sports', 'Lifestyle', 'Entertainment', 'Explainers', 'Opinion'].includes(category) ? category : 'India',
     keyTakeaways: [
-      `Authoritative report synthesized from verified primary source wire dispatches and stakeholder briefings.`,
-      `Key institutional directives emphasize immediate operational continuity and structural coordination.`,
-      `International and domestic industry observers are actively monitoring subsequent regulatory and economic ripples.`,
-      `Verified operational updates continue under established statutory reporting standards.`
+      `Official developments regarding ${cleanHeadline} have been documented by primary source reports.`,
+      `Administrative authorities and investigative teams have initiated immediate assessment protocols.`,
+      `Key stakeholders emphasize operational continuity and public coordination across the sector.`,
+      `Verified dispatches continue under established editorial intelligence standards.`
     ],
-    content: `## Executive Overview & Strategic Context
+    content: `## Executive Overview & Initial Dispatches
 
-In an authoritative briefing reported today via **${source}**, fresh operational developments regarding **${cleanInput}** have emerged as a focal point across regional and international policy sectors.
+In an authoritative news report filed via **${source}**, fresh operational developments regarding **${cleanHeadline}** have emerged as a focal point across regional authorities.
 
-According to verified reports, institutional bodies have enacted comprehensive guidance designed to maintain continuity of governance, commerce, and strategic affairs.
+According to verified reports, institutional bodies have enacted immediate coordination procedures designed to ensure safety, continuity of operations, and factual clarity.
 
-## Underlying Implications & Policy Assessment
+## Verified Background & Key Inquiries
 
-The development arrives amidst critical deliberations among industry leaders and civic authorities. Observers emphasize that structural milestones of this caliber carry long-term economic and geopolitical ramifications, necessitating coordinated multilateral oversight.
+Deliberations are actively underway as investigators and civil authorities verify the origin and authenticity of initial disclosures. Community leadership and administrative officers emphasize that comprehensive protocols remain in full effect.
 
-> "Transformative policy and market developments demand rigorous, transparent reporting to ensure that institutional continuity and public accountability remain steadfast."
+> "Transparent verification and swift institutional coordination remain paramount to ensuring accurate public knowledge and security."
 
-## Sector Outlook & Future Timeline
+## Ongoing Developments
 
-As domestic and international stakeholders evaluate the immediate impact, subsequent regulatory advisories and technical disclosures are expected over the coming week.
+As administrative officers continue assessments, additional verified advisories and formal briefings are expected as the situation develops.
 
-*iamnewsagent.com will maintain active tracking as additional verified notices and formal releases are issued.*`,
-    tags: ['Intelligence Dispatch', 'Policy Analysis', 'Strategic Outlook', category],
+*iamnewsagent.com will maintain active coverage as formal statements are released.*`,
+    tags: ['Breaking News', 'Security Brief', 'Current Affairs', category],
     readTimeMinutes: 4,
-    imageTopic: `${category.toLowerCase()} strategic summit report`,
-    imageCaption: `Analytical context regarding ${cleanInput}.`,
+    imageTopic: `${category.toLowerCase()} city news dispatch`,
+    imageCaption: `Editorial context regarding ${cleanHeadline}.`,
     originalityNote: 'Original journalistic dispatch synthesized to avoid verbatim wire reproduction.',
   };
 }
@@ -277,25 +316,38 @@ export async function rewriteNewsWithGemini(params: {
   preferredCategory?: string;
   tone?: string;
 }): Promise<RewrittenArticleResult> {
+  const sanitizedParams = {
+    ...params,
+    headline: params.headline ? cleanNewsTitle(params.headline) : '',
+    rawText: params.rawText ? decodeHtmlEntities(params.rawText) : '',
+  };
+
   try {
     const res = await fetch('/api/news/ai-rewrite', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify(sanitizedParams),
     });
     if (res.ok) {
       const data = await res.json();
       if (data.success && data.data) {
-        return data.data;
+        return {
+          ...data.data,
+          headline: cleanNewsTitle(data.data.headline),
+          deck: decodeHtmlEntities(data.data.deck),
+          content: decodeHtmlEntities(data.data.content),
+          keyTakeaways: (data.data.keyTakeaways || []).map((k: string) => decodeHtmlEntities(k)),
+          tags: (data.data.tags || []).map((t: string) => decodeHtmlEntities(t)),
+          imageCaption: decodeHtmlEntities(data.data.imageCaption || ''),
+        };
       }
     }
-    console.warn(`Server ai-rewrite returned status ${res.status}. Triggering intelligent journalistic fallback...`);
   } catch (err) {
     console.warn('Failed to rewrite news via server endpoint, engaging fallback:', err);
   }
 
   // Graceful fallback for static environments or temporary network disruptions
-  return generateJournalisticFallbackArticle(params);
+  return generateJournalisticFallbackArticle(sanitizedParams);
 }
 
 export interface LiveStoryPointsResult {

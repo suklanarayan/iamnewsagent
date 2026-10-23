@@ -334,13 +334,51 @@ export function updateCanonical(url: string): void {
 }
 
 /**
- * Generates clean, URL-safe slugs
+ * Fully decodes HTML entities (both decimal, hex, and named entities) into clean UTF-8 text
+ */
+export function decodeHtmlEntities(str: string): string {
+  if (!str) return '';
+  return str
+    // Numeric decimal entities (e.g. &#039;, &#39;, &#8217;)
+    .replace(/&#(\d+);/g, (_, dec) => {
+      const code = parseInt(dec, 10);
+      return !isNaN(code) ? String.fromCharCode(code) : _;
+    })
+    // Numeric hex entities (e.g. &#x27;, &#x2019;)
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => {
+      const code = parseInt(hex, 16);
+      return !isNaN(code) ? String.fromCharCode(code) : _;
+    })
+    // Named entities
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&mdash;/gi, '—')
+    .replace(/&ndash;/gi, '–')
+    .replace(/&hellip;/gi, '…')
+    .replace(/&lsquo;/gi, '‘')
+    .replace(/&rsquo;/gi, '’')
+    .replace(/&ldquo;/gi, '“')
+    .replace(/&rdquo;/gi, '”')
+    .replace(/&trade;/gi, '™')
+    .replace(/&copy;/gi, '©')
+    .replace(/&reg;/gi, '®')
+    .replace(/<!\[CDATA\[(.*?)\]\]>/gs, '$1');
+}
+
+/**
+ * Generates clean, URL-safe slugs without raw entity fragments (e.g. turns Mumbai's into mumbais, never -039-)
  */
 export function slugify(text: string): string {
-  return text
+  const decoded = decodeHtmlEntities(text || '');
+  return decoded
     .toString()
     .toLowerCase()
     .trim()
+    .replace(/['’‘`]/g, '')
     .replace(/[\s\W-]+/g, '-')
     .replace(/^-+|-+$/g, '');
 }

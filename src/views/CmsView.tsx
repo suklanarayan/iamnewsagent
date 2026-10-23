@@ -42,7 +42,7 @@ import type {
   SourceOriginType,
   PublicationStatus,
 } from '../types';
-import { slugify } from '../utils/seo';
+import { slugify, decodeHtmlEntities } from '../utils/seo';
 import {
   createArticle,
   updateArticle,
@@ -68,6 +68,7 @@ import {
   resolveCuratedImageUrl,
   rewriteNewsWithGemini,
   fetchNewsFromUrl,
+  cleanNewsTitle,
   type RewrittenArticleResult,
 } from '../services/aiNewsService';
 
@@ -250,9 +251,10 @@ export const CmsView: React.FC<CmsViewProps> = ({
 
   // Auto-slug generator
   const handleHeadlineChange = (val: string) => {
-    setHeadline(val);
+    const cleanVal = decodeHtmlEntities(val);
+    setHeadline(cleanVal);
     if (!isSlugManuallyEdited) {
-      setSlug(slugify(val));
+      setSlug(slugify(cleanVal));
     }
   };
 
@@ -308,23 +310,24 @@ export const CmsView: React.FC<CmsViewProps> = ({
   // Load AI rewritten story directly into Editor to polish
   const handleLoadRewrittenIntoEditor = (data: RewrittenArticleResult & { sourceTitle?: string; sourceUrl?: string }) => {
     setEditingArticleId(null);
-    setHeadline(data.headline);
-    setSlug(slugify(data.headline));
+    const cleanHeadline = cleanNewsTitle(data.headline);
+    setHeadline(cleanHeadline);
+    setSlug(slugify(cleanHeadline));
     setIsSlugManuallyEdited(false);
-    setDeck(data.deck);
+    setDeck(decodeHtmlEntities(data.deck));
     setCategory((data.category as Category) || 'Technology');
     setFeaturedImage(resolveCuratedImageUrl(data.category, data.imageTopic));
-    setImageCaption(data.imageCaption || `Wire reporting filed by editorial desk.`);
+    setImageCaption(decodeHtmlEntities(data.imageCaption || `Wire reporting filed by editorial desk.`));
     setIsBreaking(false);
     setStatus('published');
     setArticleType('standard');
     setSourceType(data.sourceTitle ? 'network' : 'original');
-    setSourceName(data.sourceTitle || 'News Wire Service');
+    setSourceName(cleanNewsTitle(data.sourceTitle || 'News Wire Service'));
     setSourceUrl(data.sourceUrl || '');
-    setTagsInput((data.tags || []).join(', '));
+    setTagsInput((data.tags || []).map((t) => decodeHtmlEntities(t)).join(', '));
     setReadTimeMinutes(data.readTimeMinutes || 4);
-    setKeyTakeaways(data.keyTakeaways && data.keyTakeaways.length > 0 ? data.keyTakeaways : ['']);
-    setContent(data.content);
+    setKeyTakeaways(data.keyTakeaways && data.keyTakeaways.length > 0 ? data.keyTakeaways.map((t) => decodeHtmlEntities(t)) : ['']);
+    setContent(decodeHtmlEntities(data.content));
     setPublishedAt(new Date().toISOString());
     setAutoBumpDateOnSave(true);
     setActiveTab('editor');
@@ -481,18 +484,23 @@ export const CmsView: React.FC<CmsViewProps> = ({
         sourceName: 'Web Source',
       });
 
-      setHeadline(result.headline);
-      setSlug(slugify(result.headline));
+      const cleanHeadline = cleanNewsTitle(result.headline);
+      const cleanDeck = decodeHtmlEntities(result.deck);
+      const cleanContent = decodeHtmlEntities(result.content);
+      const cleanSourceName = cleanNewsTitle(extracted.title || 'Web Wire');
+
+      setHeadline(cleanHeadline);
+      setSlug(slugify(cleanHeadline));
       setIsSlugManuallyEdited(false);
-      setDeck(result.deck);
-      setContent(result.content);
-      setKeyTakeaways(result.keyTakeaways || []);
-      setTagsInput((result.tags || []).join(', '));
-      setCategory((result.category as Category) || 'World');
+      setDeck(cleanDeck);
+      setContent(cleanContent);
+      setKeyTakeaways((result.keyTakeaways || []).map((t) => decodeHtmlEntities(t)));
+      setTagsInput((result.tags || []).map((t) => decodeHtmlEntities(t)).join(', '));
+      setCategory((result.category as Category) || 'India');
       setFeaturedImage(resolveCuratedImageUrl(result.category, result.imageTopic));
-      setImageCaption(result.imageCaption || 'News wire context image.');
+      setImageCaption(decodeHtmlEntities(result.imageCaption || 'News wire context image.'));
       setSourceType('network');
-      setSourceName(extracted.title || 'Web Wire');
+      setSourceName(cleanSourceName);
       setSourceUrl(editorUrlInput.trim());
       setPublishedAt(new Date().toISOString());
       setAutoBumpDateOnSave(true);
@@ -1108,7 +1116,7 @@ export const CmsView: React.FC<CmsViewProps> = ({
                             </span>
                           </div>
                           <div className="text-[11px] text-slate-400 font-mono truncate mt-0.5">
-                            /article/{art.slug}
+                            /news/{art.slug}
                           </div>
                         </td>
                         <td className="p-3.5 whitespace-nowrap">
@@ -1370,7 +1378,7 @@ export const CmsView: React.FC<CmsViewProps> = ({
                 </div>
                 <div className="flex items-center rounded-lg bg-slate-900 border border-slate-700 overflow-hidden text-xs font-mono">
                   <span className="px-3 py-2 text-slate-400 bg-slate-950 border-r border-slate-800 select-none">
-                    iamquickagent.com/article/
+                    iamquickagent.com/news/
                   </span>
                   <input
                     id="editor-slug-input"
