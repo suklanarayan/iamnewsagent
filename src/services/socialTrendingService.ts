@@ -6,8 +6,16 @@ export async function fetchSocialTvTrending(
   platform: string = 'all',
   refresh: boolean = false
 ): Promise<SocialTvTrendingItem[]> {
+  // If force refreshing, purge stale localStorage cache immediately
+  if (refresh) {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {}
+  }
+
   try {
-    const url = `/api/news/social-tv-trending?platform=${encodeURIComponent(platform)}${
+    // Always request 'all' platforms from the server so switching tabs is instant and cohesive
+    const url = `/api/news/social-tv-trending?platform=all${
       refresh ? `&refresh=true&_t=${Date.now()}` : ''
     }`;
     const res = await fetch(url, {
@@ -20,29 +28,15 @@ export async function fetchSocialTvTrending(
     if (res.ok) {
       const data = await res.json();
       if (data && Array.isArray(data.items) && data.items.length > 0) {
-        // Cache to localStorage for offline / fast fallback
+        // Cache full collection to localStorage
         try {
-          if (platform === 'all') {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data.items));
-          }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.items));
         } catch {
           // ignore storage quota
         }
-        return data.items;
-      }
-    }
-  } catch (err) {
-    console.warn('Failed to fetch live social & TV trending, trying local cache...', err);
-  }
 
-  // Fallback to cached items in localStorage
-  try {
-    const cached = localStorage.getItem(STORAGE_KEY);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        if (platform === 'all') return parsed;
-        return parsed.filter((i: SocialTvTrendingItem) => {
+        if (platform === 'all') return data.items;
+        return data.items.filter((i: SocialTvTrendingItem) => {
           if (platform === 'x') return i.platform === 'x';
           if (platform === 'tv') return i.platform === 'tv';
           if (platform === 'facebook') return i.platform === 'facebook';
@@ -51,8 +45,30 @@ export async function fetchSocialTvTrending(
         });
       }
     }
-  } catch {
-    // ignore
+  } catch (err) {
+    console.warn('Failed to fetch live social & TV trending, trying local cache...', err);
+  }
+
+  // Fallback to cached items in localStorage (only if not an explicit refresh request)
+  if (!refresh) {
+    try {
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (platform === 'all') return parsed;
+          return parsed.filter((i: SocialTvTrendingItem) => {
+            if (platform === 'x') return i.platform === 'x';
+            if (platform === 'tv') return i.platform === 'tv';
+            if (platform === 'facebook') return i.platform === 'facebook';
+            if (platform === 'hashtags') return !!i.hashtag;
+            return true;
+          });
+        }
+      }
+    } catch {
+      // ignore
+    }
   }
 
   // Generate fresh relative timestamps for fallback seeds

@@ -58,6 +58,11 @@ function decodeHtmlEntities(str: string): string {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&#039;/g, "'")
+    .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '–')
+    .replace(/&hellip;/g, '…')
     .replace(/&nbsp;/g, ' ')
     .replace(/<!\[CDATA\[(.*?)\]\]>/gs, '$1');
 }
@@ -459,28 +464,57 @@ function generateCleanHashtag(title: string): string {
   return '#' + tagWords.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
 }
 
-// Helper: Curated photos for viral categories
+// Spam and content hygiene filter
+function isSpamOrInappropriate(text: string): boolean {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  const bannedPatterns = [
+    '18video', '18+', 'mms', 'leak', 'leaked', 'hot video', 'telegram',
+    'desihot', 'adult', 'nude', 'porn', 'xxx', 'sex', 'scandal video',
+    'fabrykanorblina', 'viral mms', 'watch online full video', 'download link',
+    '18videohot', 'bengali video viral', 'leaked video viral', 'onlyfans',
+  ];
+  return bannedPatterns.some(b => lower.includes(b));
+}
+
+// Helper: Curated photos for viral categories with comprehensive keyword matching
 function resolveTrendingImage(category: string, title: string): string {
   const t = (title + ' ' + category).toLowerCase();
-  if (t.includes('cricket') || t.includes('match') || t.includes('sport') || t.includes('ipl') || t.includes('t20')) {
+  // Legal / Judiciary / Court / Hindi law terms
+  if (
+    t.includes('court') || t.includes('न्यायालय') || t.includes('कोर्ट') ||
+    t.includes('judge') || t.includes('bench') || t.includes('bail') ||
+    t.includes('verdict') || t.includes('legal') || t.includes('advocate') ||
+    t.includes('law') || t.includes('सुप्रीम') || t.includes('हाईकोर्ट')
+  ) {
+    return 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=800&q=80';
+  }
+  // Sports & Cricket
+  if (t.includes('cricket') || t.includes('match') || t.includes('sport') || t.includes('ipl') || t.includes('t20') || t.includes('tennis') || t.includes('football') || t.includes('goal')) {
     return 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=800&q=80';
   }
-  if (t.includes('tech') || t.includes('ai') || t.includes('apple') || t.includes('google') || t.includes('chip') || t.includes('musk')) {
-    return 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80';
-  }
-  if (t.includes('movie') || t.includes('cinema') || t.includes('film') || t.includes('actor') || t.includes('box office')) {
+  // Entertainment & Cinema & Film
+  if (t.includes('movie') || t.includes('cinema') || t.includes('film') || t.includes('actor') || t.includes('box office') || t.includes('trailer') || t.includes('hollywood') || t.includes('bollywood') || t.includes('avengers') || t.includes('star')) {
     return 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=800&q=80';
   }
-  if (t.includes('market') || t.includes('sensex') || t.includes('nifty') || t.includes('stock') || t.includes('rbi') || t.includes('budget')) {
+  // Technology, AI & Devices
+  if (t.includes('tech') || t.includes('ai') || t.includes('apple') || t.includes('google') || t.includes('chip') || t.includes('musk') || t.includes('mobile') || t.includes('software') || t.includes('ipod')) {
+    return 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80';
+  }
+  // Economy, Markets & Finance
+  if (t.includes('market') || t.includes('sensex') || t.includes('nifty') || t.includes('stock') || t.includes('rbi') || t.includes('budget') || t.includes('economy') || t.includes('trade')) {
     return 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&q=80';
   }
-  if (t.includes('court') || t.includes('parliament') || t.includes('modi') || t.includes('election') || t.includes('minister')) {
+  // Politics, Parliament & Diplomacy
+  if (t.includes('parliament') || t.includes('modi') || t.includes('election') || t.includes('minister') || t.includes('brics') || t.includes('government') || t.includes('diplomatic') || t.includes('संसद') || t.includes('सरकार')) {
     return 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&q=80';
   }
-  if (t.includes('space') || t.includes('isro') || t.includes('nasa') || t.includes('satellite')) {
+  // Space, Science & ISRO
+  if (t.includes('space') || t.includes('isro') || t.includes('nasa') || t.includes('satellite') || t.includes('rocket')) {
     return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80';
   }
-  return 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=800&q=80';
+  // Default: Authoritative newspaper / newsroom editorial photography
+  return 'https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=800&q=80';
 }
 
 // In-memory cache for Social & TV trending
@@ -492,8 +526,8 @@ const SOCIAL_TV_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
 const FALLBACK_SOCIAL_TV_TRENDS = [
   {
     id: 'stv-seed-1',
-    title: 'India Semiconductor Mission: New $10B Fabrication Facilities Approved',
-    headline: 'Massive viral discussions around domestic chip manufacturing and tech self-reliance by 2028.',
+    title: 'India Semiconductor Mission',
+    headline: 'India Semiconductor Mission: New $10B Fabrication Facilities Approved in Gujarat & Tamil Nadu',
     platform: 'x',
     sourceName: '𝕏 Viral Tech Wire',
     hashtag: '#IndiaSemiconductors',
@@ -503,13 +537,13 @@ const FALLBACK_SOCIAL_TV_TRENDS = [
     imageUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
     category: 'Technology',
     isLiveBroadcast: false,
-    publishedAt: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
+    publishedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
     viralScore: 98,
   },
   {
     id: 'stv-seed-2',
-    title: 'NDTV Prime Time Digital: Diplomatic Consensus on New Delhi BRICS Declaration',
-    headline: 'Special digital broadcast edition on Global South governance reforms and multilateral trade settlements.',
+    title: 'New Delhi BRICS Summit',
+    headline: 'NDTV Prime Time Digital: Diplomatic Consensus on New Delhi Declaration and Bilateral Trade',
     platform: 'tv',
     sourceName: 'NDTV 24x7 Digital',
     hashtag: '#BRICS2026',
@@ -519,13 +553,13 @@ const FALLBACK_SOCIAL_TV_TRENDS = [
     imageUrl: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&q=80',
     category: 'World',
     isLiveBroadcast: true,
-    publishedAt: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
+    publishedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
     viralScore: 95,
   },
   {
     id: 'stv-seed-3',
-    title: 'ISRO Announces Next Generation Launch Vehicle (NGLV) Flight Readiness Roadmap',
-    headline: 'Space research discussions spike across Meta and Reddit following propulsion test clearances.',
+    title: 'ISRO Next-Gen Launch Vehicle',
+    headline: 'ISRO Announces Next Generation Launch Vehicle (NGLV) Flight Readiness Roadmap',
     platform: 'facebook',
     sourceName: 'Meta Viral Pulse',
     hashtag: '#ISROSpaceVision',
@@ -535,13 +569,13 @@ const FALLBACK_SOCIAL_TV_TRENDS = [
     imageUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
     category: 'Science',
     isLiveBroadcast: false,
-    publishedAt: new Date(Date.now() - 55 * 60 * 1000).toISOString(),
+    publishedAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
     viralScore: 92,
   },
   {
     id: 'stv-seed-4',
-    title: 'BBC World News: Clean Energy Transition & Global Grid Interconnection Talks',
-    headline: 'World broadcast stream reports on multilateral climate finance and renewable cross-border corridors.',
+    title: 'Clean Energy Corridors',
+    headline: 'BBC World News TV: Clean Energy Transition & Global Grid Interconnection Talks',
     platform: 'tv',
     sourceName: 'BBC World News TV',
     hashtag: '#GlobalEnergySummit',
@@ -551,13 +585,13 @@ const FALLBACK_SOCIAL_TV_TRENDS = [
     imageUrl: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=800&q=80',
     category: 'Business',
     isLiveBroadcast: true,
-    publishedAt: new Date(Date.now() - 70 * 60 * 1000).toISOString(),
+    publishedAt: new Date(Date.now() - 50 * 60 * 1000).toISOString(),
     viralScore: 90,
   },
   {
     id: 'stv-seed-5',
-    title: 'India vs Australia T20 Decider: Record Streaming Numbers and Fan Reactions',
-    headline: 'Top trending sports topic across X and Meta with real-time fan debates on team selection.',
+    title: 'India vs Australia Cricket',
+    headline: 'India vs Australia T20 Decider: Record Streaming Numbers and Fan Reactions',
     platform: 'x',
     sourceName: '𝕏 Sports Radar',
     hashtag: '#IndvsAus',
@@ -567,13 +601,13 @@ const FALLBACK_SOCIAL_TV_TRENDS = [
     imageUrl: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=800&q=80',
     category: 'Sports',
     isLiveBroadcast: false,
-    publishedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+    publishedAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
     viralScore: 99,
   },
   {
     id: 'stv-seed-6',
-    title: 'India Today TV Digital: Supreme Court Hearing on Digital Personal Data Protection',
-    headline: 'Live courtroom coverage and legal expert analysis on consumer privacy guidelines.',
+    title: 'Supreme Court Privacy Bench',
+    headline: 'India Today TV Digital: Supreme Court Hearing on Digital Personal Data Protection',
     platform: 'tv',
     sourceName: 'India Today Digital',
     hashtag: '#PrivacyRights2026',
@@ -583,7 +617,7 @@ const FALLBACK_SOCIAL_TV_TRENDS = [
     imageUrl: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=800&q=80',
     category: 'India',
     isLiveBroadcast: true,
-    publishedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    publishedAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
     viralScore: 88,
   }
 ];
@@ -594,6 +628,7 @@ app.get('/api/news/social-tv-trending', async (req, res) => {
   const platformFilter = (req.query.platform as string || 'all').toLowerCase();
   const now = Date.now();
 
+  // If cached and not expired, and not force refreshing, return immediately
   if (!forceRefresh && cachedSocialTvTrends.length > 0 && (now - lastSocialTvFetchTime) < SOCIAL_TV_CACHE_TTL) {
     const filtered = filterSocialTvItems(cachedSocialTvTrends, platformFilter);
     return res.json({
@@ -607,75 +642,117 @@ app.get('/api/news/social-tv-trending', async (req, res) => {
   }
 
   try {
-    const [trendsInXml, trendsUsXml, socialViralXml, tvDigitalXml, ndtvXml, bbcXml] = await Promise.all([
+    const [trendsInXml, trendsUsXml, techNewsXml, entNewsXml, topNewsXml, ndtvXml, bbcXml] = await Promise.all([
+      // 1. Google Trends (India)
       fetch('https://trends.google.com/trending/rss?geo=IN', {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(6000),
       }).then(r => r.text()).catch(() => ''),
+
+      // 2. Google Trends (US / Global)
       fetch('https://trends.google.com/trending/rss?geo=US', {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(6000),
       }).then(r => r.text()).catch(() => ''),
-      fetch('https://news.google.com/rss/search?q=trending+on+social+media+OR+viral+OR+trending+on+X&hl=en-IN&gl=IN&ceid=IN:en', {
+
+      // 3. Google News Technology (Real verified tech news & viral discussions for X / Twitter)
+      fetch('https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=en-IN&gl=IN&ceid=IN:en', {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(6000),
       }).then(r => r.text()).catch(() => ''),
-      fetch('https://news.google.com/rss/search?q=NDTV+digital+OR+BBC+News+digital+OR+CNN+broadcast&hl=en-IN&gl=IN&ceid=IN:en', {
+
+      // 4. Google News Entertainment (Real viral entertainment, cinema, pop culture for Meta / Facebook)
+      fetch('https://news.google.com/rss/headlines/section/topic/ENTERTAINMENT?hl=en-IN&gl=IN&ceid=IN:en', {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(6000),
       }).then(r => r.text()).catch(() => ''),
+
+      // 5. Google News Top National & World Breaking News
+      fetch('https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en', {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        signal: AbortSignal.timeout(6000),
+      }).then(r => r.text()).catch(() => ''),
+
+      // 6. NDTV 24x7 Digital Video & Newsroom Top Stories
       fetch('https://feeds.feedburner.com/ndtvnews-top-stories', {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(6000),
       }).then(r => r.text()).catch(() => ''),
+
+      // 7. BBC World News Live Broadcast Feed
       fetch('https://feeds.bbci.co.uk/news/world/rss.xml', {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(6000),
       }).then(r => r.text()).catch(() => ''),
     ]);
 
     const items: any[] = [];
-    const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
 
-    // 1. Process Google Trends (India + Global) -> Social Media & Viral Buzz
+    // Helper: Process Google Trends (India + US) with extraction of actual news headlines & real images
     const processTrends = (xml: string, region: string) => {
+      if (!xml) return;
       let match: RegExpExecArray | null;
       let count = 0;
       const localRegex = /<item>([\s\S]*?)<\/item>/gi;
       while ((match = localRegex.exec(xml)) !== null && count < 6) {
         const raw = match[1];
-        const title = cleanCdataAndEntities(raw.match(/<title>([\s\S]*?)<\/title>/)?.[1] || '');
-        if (!title) continue;
+        const rawTitle = cleanCdataAndEntities(raw.match(/<title>([\s\S]*?)<\/title>/)?.[1] || '');
+        if (!rawTitle) continue;
+        if (isSpamOrInappropriate(rawTitle)) continue;
 
         const approx = raw.match(/<ht:approx_traffic>([\s\S]*?)<\/ht:approx_traffic>/)?.[1] || '';
-        const newsTitle = cleanCdataAndEntities(raw.match(/<ht:news_item_title>([\s\S]*?)<\/ht:news_item_title>/)?.[1] || title);
+        const newsTitle = cleanCdataAndEntities(raw.match(/<ht:news_item_title>([\s\S]*?)<\/ht:news_item_title>/)?.[1] || '');
         const newsSnippet = cleanCdataAndEntities(raw.match(/<ht:news_item_snippet>([\s\S]*?)<\/ht:news_item_snippet>/)?.[1] || '');
-        const newsSource = cleanCdataAndEntities(raw.match(/<ht:news_item_source>([\s\S]*?)<\/ht:news_item_source>/)?.[1] || (region === 'IN' ? 'Trending on 𝕏 (India)' : 'Global Viral Radar'));
-        const newsUrl = cleanCdataAndEntities(raw.match(/<ht:news_item_url>([\s\S]*?)<\/ht:news_item_url>/)?.[1] || `https://news.google.com/search?q=${encodeURIComponent(title)}`);
+        const newsSource = cleanCdataAndEntities(raw.match(/<ht:news_item_source>([\s\S]*?)<\/ht:news_item_source>/)?.[1] || (region === 'IN' ? 'Trending Wire (India)' : 'Global Viral Radar'));
+        const newsUrl = cleanCdataAndEntities(raw.match(/<ht:news_item_url>([\s\S]*?)<\/ht:news_item_url>/)?.[1] || `https://news.google.com/search?q=${encodeURIComponent(rawTitle)}`);
         const pubDateMatch = raw.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1];
 
-        const hashtag = generateCleanHashtag(title);
+        // Extract real image from Google Trends RSS if present
+        const pictureUrl = raw.match(/<ht:picture>([\s\S]*?)<\/ht:picture>/)?.[1] ||
+                           raw.match(/<ht:news_item_picture>([\s\S]*?)<\/ht:news_item_picture>/)?.[1] || '';
+
+        // Capitalize search query for clean topic display (e.g. "constance wu" -> "Constance Wu")
+        const formattedTopic = rawTitle
+          .split(' ')
+          .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+          .join(' ');
+
+        // Choose the headline: use the full journalistic news headline if available
+        const headline = newsTitle && newsTitle.length > 10 ? newsTitle : formattedTopic;
+        if (isSpamOrInappropriate(headline)) continue;
+
+        const hashtag = generateCleanHashtag(formattedTopic);
+        if (isSpamOrInappropriate(hashtag)) continue;
+
         const platform = count % 2 === 0 ? 'x' : 'facebook';
         const formattedTraffic = approx
           ? `${approx.replace('+', '')}+ searches · Viral on ${platform === 'x' ? '𝕏' : 'Meta'}`
           : `Trending #${count + 1} on ${platform === 'x' ? '𝕏' : 'Meta'}`;
 
         const category = region === 'IN' ? 'India' : 'World';
+        const finalImage = (pictureUrl && pictureUrl.startsWith('http'))
+          ? pictureUrl
+          : resolveTrendingImage(category, `${formattedTopic} ${headline}`);
+
+        const summary = newsSnippet && newsSnippet.length > 20
+          ? newsSnippet
+          : `Top trending viral discussion, verified coverage from ${newsSource}, and real-time public engagement around ${formattedTopic}.`;
+
         items.push({
-          id: `trend-${region.toLowerCase()}-${count}-${Buffer.from(title).toString('base64').substring(0, 8)}`,
-          title,
-          headline: newsTitle,
+          id: `trend-${region.toLowerCase()}-${count}-${Buffer.from(rawTitle).toString('base64').substring(0, 8)}`,
+          title: formattedTopic,
+          headline,
           platform,
           sourceName: newsSource,
           hashtag,
           approxTraffic: formattedTraffic,
-          summary: newsSnippet || `Major public momentum and viral engagement centered on ${title}.`,
+          summary,
           url: newsUrl,
-          imageUrl: resolveTrendingImage(category, title + ' ' + newsTitle),
+          imageUrl: finalImage,
           category,
           isLiveBroadcast: false,
           publishedAt: safeIsoDate(pubDateMatch),
-          viralScore: Math.floor(88 + Math.random() * 11),
+          viralScore: Math.floor(90 + Math.random() * 9),
         });
         count++;
       }
@@ -684,97 +761,83 @@ app.get('/api/news/social-tv-trending', async (req, res) => {
     if (trendsInXml) processTrends(trendsInXml, 'IN');
     if (trendsUsXml) processTrends(trendsUsXml, 'US');
 
-    // 1.5 Process Live Google News Viral Social Stream (X & Facebook)
-    if (socialViralXml) {
+    // Helper to process standard Google News / Media RSS feeds
+    const processGoogleNewsFeed = (xml: string, platform: 'x' | 'facebook' | 'tv', defaultCategory: string, defaultPlatformLabel: string, maxItems: number = 6) => {
+      if (!xml) return;
       let match: RegExpExecArray | null;
       let count = 0;
       const localRegex = /<item>([\s\S]*?)<\/item>/gi;
-      while ((match = localRegex.exec(socialViralXml)) !== null && count < 8) {
+      while ((match = localRegex.exec(xml)) !== null && count < maxItems) {
         const raw = match[1];
-        let title = cleanCdataAndEntities(raw.match(/<title>([\s\S]*?)<\/title>/)?.[1] || '');
-        if (!title || title.toLowerCase() === 'google news') continue;
+        let fullTitle = cleanCdataAndEntities(raw.match(/<title>([\s\S]*?)<\/title>/)?.[1] || '');
+        if (!fullTitle || fullTitle.toLowerCase() === 'google news') continue;
+        if (isSpamOrInappropriate(fullTitle)) continue;
 
-        let sourceName = 'Trending on 𝕏';
-        if (title.includes(' - ')) {
-          const parts = title.split(' - ');
-          sourceName = parts.pop()?.trim() || sourceName;
-          title = parts.join(' - ').trim();
+        let publisher = defaultPlatformLabel;
+        let storyTitle = fullTitle;
+        if (fullTitle.includes(' - ')) {
+          const parts = fullTitle.split(' - ');
+          publisher = parts.pop()?.trim() || publisher;
+          storyTitle = parts.join(' - ').trim();
         }
 
         const link = cleanCdataAndEntities(raw.match(/<link>([\s\S]*?)<\/link>/)?.[1] || raw.match(/<guid[^>]*>([\s\S]*?)<\/guid>/)?.[1] || '');
         const desc = stripHtml(cleanCdataAndEntities(raw.match(/<description>([\s\S]*?)<\/description>/)?.[1] || ''));
         const pubDateMatch = raw.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1];
 
-        const isFacebook = count % 3 === 2;
-        const platform = isFacebook ? 'facebook' : 'x';
-        const hashtag = generateCleanHashtag(title);
-        const approxEngagements = Math.floor(120 + Math.random() * 250);
+        // Extract media thumbnail if present
+        const mediaThumb = raw.match(/<media:thumbnail[^>]+url=["']([^"']+)["']/i)?.[1] ||
+                           raw.match(/<media:content[^>]+url=["']([^"']+)["']/i)?.[1] ||
+                           raw.match(/<enclosure[^>]+url=["']([^"']+)["']/i)?.[1] || '';
+
+        const hashtag = generateCleanHashtag(storyTitle);
+        if (isSpamOrInappropriate(hashtag)) continue;
+
+        const engagements = Math.floor(140 + Math.random() * 320);
+        const approxTraffic = platform === 'tv'
+          ? '🔴 LIVE TV Digital Bulletin'
+          : `${engagements}K+ discussions on ${platform === 'x' ? '𝕏' : 'Meta'}`;
+
+        const summary = (desc && desc.length > 25 && !desc.includes('&nbsp;'))
+          ? (desc.length > 210 ? desc.substring(0, 207) + '...' : desc)
+          : `High-velocity public momentum, breaking digital dispatches, and trending reactions reported by ${publisher}.`;
+
+        const finalImage = (mediaThumb && mediaThumb.startsWith('http'))
+          ? mediaThumb
+          : resolveTrendingImage(defaultCategory, storyTitle);
 
         items.push({
-          id: `social-${platform}-${count}-${Buffer.from(title).toString('base64').substring(0, 8)}`,
-          title,
-          headline: title,
+          id: `news-${platform}-${count}-${Buffer.from(storyTitle).toString('base64').substring(0, 8)}`,
+          title: storyTitle,
+          headline: storyTitle,
           platform,
-          sourceName: isFacebook ? `${sourceName} (Meta Viral)` : `${sourceName} (𝕏 Wire)`,
+          sourceName: platform === 'tv' ? `${publisher} Digital TV` : `${publisher} (${platform === 'x' ? '𝕏 Wire' : 'Meta Viral'})`,
           hashtag,
-          approxTraffic: `${approxEngagements}K+ discussions on ${isFacebook ? 'Facebook' : '𝕏'}`,
-          summary: desc.length > 220 ? desc.substring(0, 217) + '...' : desc || `Top viral conversation, shared multimedia updates, and citizen reactions regarding ${title}.`,
-          url: link || `https://news.google.com/search?q=${encodeURIComponent(title)}`,
-          imageUrl: resolveTrendingImage('General', title),
-          category: 'Technology',
-          isLiveBroadcast: false,
+          approxTraffic,
+          summary,
+          url: link || `https://news.google.com/search?q=${encodeURIComponent(storyTitle)}`,
+          imageUrl: finalImage,
+          category: defaultCategory,
+          isLiveBroadcast: platform === 'tv',
           publishedAt: safeIsoDate(pubDateMatch),
           viralScore: Math.floor(91 + Math.random() * 8),
         });
         count++;
       }
-    }
-
-    // 2. Process TV Digital Broadcast Editions (NDTV, BBC, TV digital streams)
-    const processTvFeed = (xml: string, networkName: string, defaultCategory: string) => {
-      let match: RegExpExecArray | null;
-      let count = 0;
-      const localRegex = /<item>([\s\S]*?)<\/item>/gi;
-      while ((match = localRegex.exec(xml)) !== null && count < 5) {
-        const raw = match[1];
-        let title = cleanCdataAndEntities(raw.match(/<title>([\s\S]*?)<\/title>/)?.[1] || '');
-        if (!title || title.toLowerCase() === 'google news') continue;
-
-        let channelName = networkName;
-        if (title.includes(' - ')) {
-          const parts = title.split(' - ');
-          channelName = parts.pop()?.trim() || channelName;
-          title = parts.join(' - ').trim();
-        }
-
-        const link = cleanCdataAndEntities(raw.match(/<link>([\s\S]*?)<\/link>/)?.[1] || raw.match(/<guid[^>]*>([\s\S]*?)<\/guid>/)?.[1] || '');
-        const desc = stripHtml(cleanCdataAndEntities(raw.match(/<description>([\s\S]*?)<\/description>/)?.[1] || ''));
-        const pubDateMatch = raw.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1];
-
-        const hashtag = generateCleanHashtag(title);
-        items.push({
-          id: `tv-${channelName.toLowerCase().replace(/[^a-z0-9]/g, '')}-${count}-${Buffer.from(title).toString('base64').substring(0, 8)}`,
-          title,
-          headline: title,
-          platform: 'tv',
-          sourceName: `${channelName} Digital TV`,
-          hashtag,
-          approxTraffic: '🔴 LIVE TV Digital Bulletin',
-          summary: desc.length > 200 ? desc.substring(0, 197) + '...' : desc || `Live television digital coverage and prime-time video dispatch from ${channelName}.`,
-          url: link || 'https://www.ndtv.com',
-          imageUrl: resolveTrendingImage(defaultCategory, title),
-          category: defaultCategory,
-          isLiveBroadcast: true,
-          publishedAt: safeIsoDate(pubDateMatch),
-          viralScore: Math.floor(92 + Math.random() * 7),
-        });
-        count++;
-      }
     };
 
-    if (tvDigitalXml) processTvFeed(tvDigitalXml, 'TV Digital Network', 'World');
-    if (ndtvXml) processTvFeed(ndtvXml, 'NDTV 24x7 Digital', 'India');
-    if (bbcXml) processTvFeed(bbcXml, 'BBC World TV Digital', 'World');
+    // Process Technology stream (viral on X)
+    if (techNewsXml) processGoogleNewsFeed(techNewsXml, 'x', 'Technology', '𝕏 Tech Radar', 6);
+
+    // Process Entertainment stream (viral on Meta)
+    if (entNewsXml) processGoogleNewsFeed(entNewsXml, 'facebook', 'Entertainment', 'Meta Viral Wire', 6);
+
+    // Process Top World/India stream
+    if (topNewsXml) processGoogleNewsFeed(topNewsXml, 'x', 'India', 'Digital News Desk', 5);
+
+    // Process TV Digital Broadcast Editions (NDTV & BBC)
+    if (ndtvXml) processGoogleNewsFeed(ndtvXml, 'tv', 'India', 'NDTV 24x7 Digital', 5);
+    if (bbcXml) processGoogleNewsFeed(bbcXml, 'tv', 'World', 'BBC World News TV', 5);
 
     // If live feeds returned less than 4 items, supplement with fallback seed
     if (items.length < 4) {
@@ -784,7 +847,7 @@ app.get('/api/news/social-tv-trending', async (req, res) => {
     // Deduplicate by title similarity
     const seen = new Set<string>();
     const unique = items.filter(item => {
-      const slug = item.title.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 25);
+      const slug = item.title.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 22);
       if (seen.has(slug)) return false;
       seen.add(slug);
       return true;
@@ -1414,15 +1477,15 @@ function renderHtmlWithSeo(urlPath: string, templateHtml: string): string {
   let html = templateHtml;
   const baseUrl = 'https://iamquickagent.com';
 
-  // 1. Article Page: /article/:slug
-  const articleMatch = urlPath.match(/^\/article\/([a-zA-Z0-9-_]+)/);
+  // 1. Article/News Page: /news/:slug or /article/:slug
+  const articleMatch = urlPath.match(/^\/(?:news|article)\/([a-zA-Z0-9-_]+)/);
   if (articleMatch) {
     const slug = articleMatch[1];
     const article = SEED_ARTICLES.find((a) => a.slug === slug);
     if (article) {
       const pageTitle = `${article.headline} - iamquickagent.com`;
       const desc = escapeHtmlMeta(article.deck || article.keyTakeaways?.[0] || 'Live breaking news and intelligence from iamquickagent.com');
-      const canonicalUrl = `${baseUrl}/article/${encodeURIComponent(article.slug)}`;
+      const canonicalUrl = `${baseUrl}/news/${encodeURIComponent(article.slug)}`;
       const img = article.featuredImage || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&h=630&q=85';
 
       html = html.replace(/<title>.*?<\/title>/i, `<title>${escapeHtmlMeta(pageTitle)}</title>`);
@@ -1546,7 +1609,7 @@ async function start() {
     });
 
     // Intercept HTML pages to inject dynamic SEO metadata and canonical tags
-    app.get(['/', '/article/:slug', '/author/:id'], async (req, res, next) => {
+    app.get(['/', '/news/:slug', '/article/:slug', '/author/:id'], async (req, res, next) => {
       try {
         const indexPath = path.resolve(process.cwd(), 'index.html');
         const rawHtml = fs.readFileSync(indexPath, 'utf-8');

@@ -42,13 +42,13 @@ export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = (
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   const [selectedBrief, setSelectedBrief] = useState<SocialTvTrendingItem | null>(null);
 
-  // Load trending data
-  const loadTrends = async (platform: string = 'all', refresh: boolean = false, silent: boolean = false) => {
+  // Load trending data (fetches unified stream so client-side tab switching is instant)
+  const loadTrends = async (refresh: boolean = false, silent: boolean = false) => {
     if (refresh) setIsRefreshing(true);
     else if (!silent) setIsLoading(true);
 
     try {
-      const data = await fetchSocialTvTrending(platform, refresh);
+      const data = await fetchSocialTvTrending('all', refresh);
       setItems(data);
       setLastSyncTimestamp(Date.now());
       setLastUpdated('Just now');
@@ -69,17 +69,17 @@ export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = (
   };
 
   useEffect(() => {
-    loadTrends(activePlatform);
-  }, [activePlatform]);
+    loadTrends(false, items.length > 0);
+  }, []);
 
   // Live Auto-Sync: Poll every 90 seconds in background so public visitors always see live updates
   useEffect(() => {
     const pollInterval = setInterval(() => {
-      loadTrends(activePlatform, true, true);
+      loadTrends(true, true);
     }, 90000);
 
     return () => clearInterval(pollInterval);
-  }, [activePlatform]);
+  }, []);
 
   // Relative Time Display (Just now, 1m ago, 2m ago...)
   useEffect(() => {
@@ -193,7 +193,7 @@ export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = (
             </div>
             <button
               type="button"
-              onClick={() => loadTrends(activePlatform, true)}
+              onClick={() => loadTrends(true)}
               disabled={isRefreshing}
               className="px-3.5 py-1.5 rounded-lg border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs disabled:opacity-50 cursor-pointer active:scale-95"
               title="Force sync live social & TV streams now"
@@ -355,7 +355,7 @@ export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = (
                     onClick={() => setSelectedBrief(featuredItem)}
                     className="text-xl sm:text-2xl font-bold font-serif text-slate-950 group-hover:text-red-700 transition-colors leading-snug cursor-pointer"
                   >
-                    {featuredItem.title}
+                    {featuredItem.headline || featuredItem.title}
                   </h3>
 
                   <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
@@ -431,7 +431,7 @@ export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = (
                     onClick={() => setSelectedBrief(item)}
                     className="text-sm font-bold font-serif text-slate-900 group-hover:text-red-700 transition-colors line-clamp-2 leading-snug cursor-pointer"
                   >
-                    {item.title}
+                    {item.headline || item.title}
                   </h4>
 
                   {/* Hashtag & Summary */}
@@ -527,7 +527,7 @@ export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = (
 
               <div className="space-y-2">
                 <h3 className="text-xl font-bold font-serif text-slate-950 leading-snug">
-                  {selectedBrief.title}
+                  {selectedBrief.headline || selectedBrief.title}
                 </h3>
                 <p className="text-xs text-slate-500">
                   Estimated engagement: <strong className="text-slate-700">{selectedBrief.approxTraffic}</strong>

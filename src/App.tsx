@@ -146,7 +146,7 @@ export default function App() {
         }
       }
 
-      const articleMatch = pathname.match(/\/article\/([a-zA-Z0-9-_]+)/);
+      const articleMatch = pathname.match(/\/(?:news|article)\/([a-zA-Z0-9-_]+)/);
       if (articleMatch) {
         const slug = articleMatch[1];
         const art = await getArticleBySlug(slug);
@@ -187,12 +187,12 @@ export default function App() {
     }
   }, [currentView, activeCategory, articles]);
 
-  // Navigate to Article
+  // Navigate to Article (canonical /news/:slug format)
   const handleSelectArticle = (article: Article) => {
     setSelectedArticle(article);
     setCurrentView('article');
     incrementArticleViews(article.id);
-    window.history.pushState({}, '', `/article/${article.slug}`);
+    window.history.pushState({}, '', `/news/${article.slug}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -311,6 +311,7 @@ export default function App() {
                 article={selectedArticle}
                 author={selectedArticleAuthor}
                 relatedArticles={relatedArticles}
+                allArticles={articles.filter((a) => a.status === 'published')}
                 onBackToFeed={handleNavigateHome}
                 onSelectArticle={handleSelectArticle}
                 onSelectAuthor={handleSelectAuthor}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Clock,
   Eye,
@@ -9,6 +9,7 @@ import {
   Twitter,
   Linkedin,
   ArrowLeft,
+  ArrowRight,
   BookOpen,
   HelpCircle,
   ExternalLink,
@@ -16,18 +17,25 @@ import {
   Volume2,
   VolumeX,
   Globe,
+  Compass,
+  Sparkles,
+  TrendingUp,
+  Flame,
+  ChevronRight,
+  Layers,
 } from 'lucide-react';
 import type { Article, Author } from '../types';
 import { KeyTakeawaysBlock } from '../components/KeyTakeawaysBlock';
 import { BannerAd } from '../components/BannerAd';
 import { injectArticleSchema, removeArticleSchema } from '../utils/seo';
-import { getStatusMeta } from '../utils/statusUtils';
+import { getStatusMeta, formatTimeAgo } from '../utils/statusUtils';
 import { NewsImage } from '../components/NewsImage';
 
 interface ArticleViewProps {
   article: Article;
   author: Author | null;
   relatedArticles: Article[];
+  allArticles?: Article[];
   onBackToFeed: () => void;
   onSelectArticle: (article: Article) => void;
   onSelectAuthor: (authorId: string) => void;
@@ -38,6 +46,7 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
   article,
   author,
   relatedArticles,
+  allArticles = [],
   onBackToFeed,
   onSelectArticle,
   onSelectAuthor,
@@ -46,14 +55,25 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
   const [isSpeakingFull, setIsSpeakingFull] = useState(false);
 
+  // Canonical news site URL structure
   const currentUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/article/${article.slug}`
-    : `https://iamnewsagent.com/article/${article.slug}`;
+    ? `${window.location.origin}/news/${article.slug}`
+    : `https://iamquickagent.com/news/${article.slug}`;
 
-  // Dynamically inject JSON-LD NewsArticle & Breadcrumbs schema markup into document.head
+  // Track the active article ID to prevent rogue auto-scroll resets during background sync
+  const activeArticleIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // Only scroll to top when user actually navigates to a DIFFERENT article ID
+    if (activeArticleIdRef.current !== article.id) {
+      activeArticleIdRef.current = article.id;
+      window.scrollTo(0, 0);
+    }
+  }, [article.id]);
+
+  // Dynamically inject JSON-LD NewsArticle & Breadcrumbs schema markup without affecting scroll
   useEffect(() => {
     injectArticleSchema(article, author, currentUrl);
-    window.scrollTo(0, 0);
 
     return () => {
       removeArticleSchema();
@@ -113,6 +133,56 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
           minute: '2-digit',
         })
       : null;
+
+  // 1. Articles strictly matching this category (excluding current)
+  const categoryArticles = (allArticles.length > 0 ? allArticles : relatedArticles).filter(
+    (a) => a.id !== article.id && a.category?.toLowerCase() === article.category?.toLowerCase()
+  );
+
+  // 2. Cross-category dispatches from other desks
+  const otherDeskArticles = (allArticles.length > 0 ? allArticles : relatedArticles).filter(
+    (a) => a.id !== article.id && a.category?.toLowerCase() !== article.category?.toLowerCase()
+  );
+
+  // 3. Recommended related articles for bottom grid:
+  // If we have >= 4 from the same category, use top 4.
+  // Otherwise, combine whatever category stories exist with top stories from other desks up to 4 stories!
+  const bottomRecommendedStories = [
+    ...categoryArticles,
+    ...otherDeskArticles,
+  ].slice(0, 4);
+
+  // 4. Sidebar related & trending stories (up to 3)
+  const sidebarStories = [
+    ...categoryArticles,
+    ...otherDeskArticles,
+  ].slice(0, 3);
+
+  // 5. Next recommended story (next in feed to read)
+  const nextStory = categoryArticles[0] || otherDeskArticles[0] || null;
+
+  // 6. Trending Wire Across All Desks (4 top stories excluding current and bottomRecommended)
+  const trendingDeskStories = (allArticles.length > 0 ? allArticles : relatedArticles)
+    .filter(
+      (a) =>
+        a.id !== article.id &&
+        !bottomRecommendedStories.some((s) => s.id === a.id)
+    )
+    .slice(0, 4);
+
+  // Major categories directory for continuous browsing
+  const DESK_CATEGORIES = [
+    { name: 'India', desc: 'National politics, policy & parliament', icon: '🇮🇳' },
+    { name: 'World', desc: 'Global geopolitics & diplomacy', icon: '🌐' },
+    { name: 'Business', desc: 'Markets, corporate & economy', icon: '📈' },
+    { name: 'Technology', desc: 'AI, cyber defense & computing', icon: '💻' },
+    { name: 'Science', desc: 'Space exploration & breakthroughs', icon: '🔬' },
+    { name: 'Health', desc: 'Public health & medical discoveries', icon: '🏥' },
+    { name: 'Sports', desc: 'Cricket, football & tournaments', icon: '🏏' },
+    { name: 'Entertainment', desc: 'Cinema, streaming & culture', icon: '🎬' },
+    { name: 'Explainers', desc: 'Context, deep dives & history', icon: '💡' },
+    { name: 'Opinion', desc: 'Editorials & analyst columns', icon: '✍️' },
+  ];
 
   return (
     <div className="bg-white text-slate-900 min-h-screen">
@@ -517,6 +587,7 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
                 {article.tags.map((tag) => (
                   <span
                     key={tag}
+                    onClick={() => onSelectCategory(article.category)}
                     className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-medium cursor-pointer transition-colors"
                   >
                     #{tag}
@@ -524,6 +595,48 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
                 ))}
               </div>
             </div>
+
+            {/* Read Next Recommended Story Card */}
+            {nextStory && (
+              <div className="pt-6 border-t border-slate-200">
+                <div
+                  onClick={() => onSelectArticle(nextStory)}
+                  className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white shadow-md hover:shadow-lg transition-all cursor-pointer group border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-5"
+                >
+                  <div className="flex items-start gap-4 min-w-0">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden shrink-0 bg-slate-800 relative">
+                      <NewsImage
+                        src={nextStory.featuredImage}
+                        alt={nextStory.headline}
+                        category={nextStory.category}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    </div>
+                    <div className="min-w-0 space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded bg-red-600 text-white text-[10px] font-bold uppercase tracking-wider">
+                          Next Story
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          {nextStory.category} • {formatTimeAgo(nextStory.publishedAt)}
+                        </span>
+                      </div>
+                      <h4 className="text-sm sm:text-base font-serif font-bold text-white group-hover:text-red-400 transition-colors line-clamp-2 leading-snug">
+                        {nextStory.headline}
+                      </h4>
+                      <p className="text-xs text-slate-300 line-clamp-1 leading-relaxed">
+                        {nextStory.deck}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-red-600 text-white text-xs font-bold uppercase tracking-wider transition-colors border border-white/10">
+                    <span>Read Next</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </div>
+            )}
           </article>
 
           {/* Right Sidebar (4 cols) */}
@@ -563,33 +676,83 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
             {/* Reusable MPU Display Ad Placeholder */}
             <BannerAd format="mpu" />
 
-            {/* Related Articles Box */}
-            {relatedArticles.length > 0 && (
+            {/* Related & Recommended Stories Box (Always Populated with Same Category or Trending Cross-Desk) */}
+            {sidebarStories.length > 0 && (
               <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4 shadow-xs">
-                <h3 className="font-bold font-serif text-slate-950 text-base pb-2 border-b border-slate-100">
-                  Related in {article.category}
-                </h3>
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <h3 className="font-bold font-serif text-slate-950 text-base">
+                    {categoryArticles.length > 0 ? `Related in ${article.category}` : 'Trending News'}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => onSelectCategory(article.category)}
+                    className="text-[11px] font-semibold text-red-700 hover:underline"
+                  >
+                    View All
+                  </button>
+                </div>
                 <div className="divide-y divide-slate-100">
-                  {relatedArticles.slice(0, 3).map((rel) => (
+                  {sidebarStories.map((rel) => (
                     <div
                       key={rel.id}
                       onClick={() => onSelectArticle(rel)}
                       className="py-3 flex items-start gap-3 group cursor-pointer"
                     >
-                      <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-slate-900">
+                      <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-slate-900 relative">
                         <NewsImage
                           src={rel.featuredImage}
                           alt={rel.headline}
                           category={rel.category}
                         />
                       </div>
-                      <div className="min-w-0">
-                        <h4 className="text-xs font-bold font-serif text-slate-900 group-hover:text-red-700 transition-colors line-clamp-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[9px] font-bold uppercase tracking-wider">
+                            {rel.category}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {formatTimeAgo(rel.publishedAt)}
+                          </span>
+                        </div>
+                        <h4 className="text-xs font-bold font-serif text-slate-900 group-hover:text-red-700 transition-colors line-clamp-2 leading-snug">
                           {rel.headline}
                         </h4>
                         <span className="text-[10px] text-slate-400 mt-1 block">
-                          {rel.readTimeMinutes} min read
+                          {rel.readTimeMinutes || 4} min read
                         </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* High-Velocity Wire Headlines in Sidebar */}
+            {trendingDeskStories.length > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-5 space-y-3.5 shadow-xs">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
+                  <Flame className="w-4 h-4 text-red-600" />
+                  <h3 className="font-bold font-serif text-slate-950 text-sm">
+                    Wire Dispatches Right Now
+                  </h3>
+                </div>
+                <div className="divide-y divide-slate-200/60">
+                  {trendingDeskStories.map((wire, idx) => (
+                    <div
+                      key={wire.id}
+                      onClick={() => onSelectArticle(wire)}
+                      className="py-2.5 flex items-start gap-3 group cursor-pointer"
+                    >
+                      <span className="text-xs font-mono font-bold text-red-700/80 shrink-0 mt-0.5">
+                        {String(idx + 1).padStart(2, '0')}
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5 block">
+                          {wire.category}
+                        </span>
+                        <h4 className="text-xs font-semibold text-slate-900 group-hover:text-red-700 transition-colors line-clamp-2 leading-snug">
+                          {wire.headline}
+                        </h4>
                       </div>
                     </div>
                   ))}
@@ -598,6 +761,204 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
             )}
           </aside>
         </div>
+
+        {/* ------------------------------------------------------------- */}
+        {/* COMPREHENSIVE BOTTOM RELATED NEWS & EXPLORATION HUB */}
+        {/* ------------------------------------------------------------- */}
+        <section className="mt-14 pt-10 border-t-2 border-slate-200 space-y-12" aria-label="Related and Category News">
+          {/* 1. RELATED & RELEVANT NEWS GRID */}
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+              <div>
+                <div className="flex items-center gap-3">
+                  <h3 className="text-2xl sm:text-3xl font-bold font-serif text-slate-950">
+                    {categoryArticles.length >= 3
+                      ? `More from ${article.category}`
+                      : `Related Stories & Top Desk Dispatches`}
+                  </h3>
+                  <div className="w-8 h-1 bg-red-600 rounded-full" />
+                </div>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                  Continuous reporting, field dispatches, and key developments from our journalists.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onSelectCategory(article.category)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer self-start sm:self-auto shrink-0"
+              >
+                <span>Browse All {article.category}</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* 4-Card Editorial News Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {bottomRecommendedStories.map((story) => (
+                <article
+                  key={story.id}
+                  onClick={() => onSelectArticle(story)}
+                  className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md hover:border-slate-300 transition-all cursor-pointer group flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="h-44 w-full overflow-hidden bg-slate-900 relative">
+                      <NewsImage
+                        src={story.featuredImage}
+                        alt={story.headline}
+                        category={story.category}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold uppercase tracking-wider">
+                        {story.category}
+                      </div>
+                      <div className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs text-slate-200 text-[10px] flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-slate-300" />
+                        <span>{story.readTimeMinutes || 4}m read</span>
+                      </div>
+                    </div>
+
+                    <div className="p-4 space-y-2">
+                      <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                        <span>{formatTimeAgo(story.publishedAt)}</span>
+                        {story.isBreaking && (
+                          <>
+                            <span>•</span>
+                            <span className="text-red-700 font-bold uppercase">Breaking</span>
+                          </>
+                        )}
+                      </div>
+
+                      <h4 className="text-sm sm:text-base font-bold font-serif text-slate-950 group-hover:text-red-700 transition-colors leading-snug line-clamp-2">
+                        {story.headline}
+                      </h4>
+
+                      <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                        {story.deck}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="px-4 pb-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                    <span className="text-[11px]">Editorial Desk</span>
+                    <span className="text-red-700 font-bold group-hover:translate-x-0.5 transition-transform inline-flex items-center gap-1 text-[11px]">
+                      <span>Read Story</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          {/* 2. EXPLORE MORE CATEGORIES & BEATS HUB */}
+          <div className="bg-slate-50/80 rounded-2xl border border-slate-200 p-6 sm:p-8 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Compass className="w-5 h-5 text-red-600" />
+                  <h3 className="text-xl sm:text-2xl font-bold font-serif text-slate-950">
+                    Explore More News Categories &amp; Desks
+                  </h3>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600 mt-1">
+                  Dive into focused reporting and verified dispatches across all our major beats.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={onBackToFeed}
+                className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-red-700 text-white text-xs font-semibold transition-colors cursor-pointer self-start sm:self-auto shrink-0 shadow-xs"
+              >
+                Back to Front Page
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+              {DESK_CATEGORIES.map((cat) => {
+                const count = allArticles.filter(
+                  (a) => a.category?.toLowerCase() === cat.name.toLowerCase()
+                ).length;
+                const isCurrent = article.category?.toLowerCase() === cat.name.toLowerCase();
+
+                return (
+                  <button
+                    key={cat.name}
+                    type="button"
+                    onClick={() => onSelectCategory(cat.name)}
+                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer group flex flex-col justify-between ${
+                      isCurrent
+                        ? 'bg-red-50/80 border-red-300 ring-2 ring-red-600/20'
+                        : 'bg-white border-slate-200 hover:border-red-300 hover:shadow-xs'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-base">{cat.icon}</span>
+                        {count > 0 && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 group-hover:bg-red-100 group-hover:text-red-700 transition-colors">
+                            {count}
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-bold text-xs sm:text-sm text-slate-900 group-hover:text-red-700 transition-colors">
+                        {cat.name}
+                      </div>
+                      <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5 leading-snug">
+                        {cat.desc}
+                      </p>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between text-[10px] font-semibold text-slate-400 group-hover:text-red-700 transition-colors">
+                      <span>Explore</span>
+                      <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 3. TRENDING WIRE HEADLINES ACROSS THE NEWSROOM */}
+          {trendingDeskStories.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
+                <TrendingUp className="w-4 h-4 text-red-600" />
+                <h4 className="text-base sm:text-lg font-bold font-serif text-slate-950">
+                  Trending Wire Across All Desks
+                </h4>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {trendingDeskStories.map((trend) => (
+                  <div
+                    key={trend.id}
+                    onClick={() => onSelectArticle(trend)}
+                    className="p-3.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 shadow-2xs hover:shadow-xs transition-all cursor-pointer group flex flex-col justify-between"
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] text-slate-400">
+                        <span className="font-bold uppercase tracking-wider text-red-700">
+                          {trend.category}
+                        </span>
+                        <span>{formatTimeAgo(trend.publishedAt)}</span>
+                      </div>
+                      <h5 className="text-xs sm:text-sm font-bold font-serif text-slate-900 group-hover:text-red-700 transition-colors line-clamp-2 leading-snug">
+                        {trend.headline}
+                      </h5>
+                    </div>
+
+                    <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+                      <span>{trend.readTimeMinutes || 4}m read</span>
+                      <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-red-700 group-hover:translate-x-0.5 transition-all" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
       </main>
     </div>
   );
