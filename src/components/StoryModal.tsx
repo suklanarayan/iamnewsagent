@@ -230,8 +230,8 @@ export const StoryModal: React.FC<StoryModalProps> = ({
                     window.open(url, '_blank', 'noopener,noreferrer');
                     return;
                   }
-                  if (url.startsWith('/article/') && onSelectArticleSlug) {
-                    onSelectArticleSlug(url.replace('/article/', ''));
+                  if ((url.startsWith('/article/') || url.startsWith('/news/')) && onSelectArticleSlug) {
+                    onSelectArticleSlug(url.replace(/^\/(?:article|news)\//, ''));
                     return;
                   }
                   if (onSelectArticleSlug) {

@@ -9,6 +9,7 @@ interface TrendingColumnProps {
   sectionTitle?: string;
   isTrendingEnabled?: boolean;
   insightArticle?: Article;
+  insightBadge?: string;
   onSelectTrending: (item: TrendingItem) => void;
   onSelectArticle: (article: Article) => void;
 }
@@ -18,6 +19,7 @@ export const TrendingColumn: React.FC<TrendingColumnProps> = ({
   sectionTitle = 'Trending Now',
   isTrendingEnabled = true,
   insightArticle,
+  insightBadge = 'EXPLAINER BRIEF',
   onSelectTrending,
   onSelectArticle,
 }) => {
@@ -78,7 +80,7 @@ export const TrendingColumn: React.FC<TrendingColumnProps> = ({
           <div className="p-4 sm:p-5 space-y-2">
             <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
               <span className="font-bold text-amber-700 uppercase tracking-wider">
-                EXPLAINER BRIEF
+                {insightBadge || 'EXPLAINER BRIEF'}
               </span>
               <span aria-hidden="true" className="text-slate-300">·</span>
               <span>{formatTimeAgo(insightArticle.publishedAt)}</span>
@@ -88,7 +90,7 @@ export const TrendingColumn: React.FC<TrendingColumnProps> = ({
 
             <h4 className="text-base font-bold font-serif text-slate-950 group-hover:text-red-700 transition-colors leading-snug">
               <a
-                href={`/article/${insightArticle.slug}`}
+                href={`/news/${insightArticle.slug}`}
                 onClick={(e) => {
                   if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
                     e.preventDefault();
@@ -106,7 +108,7 @@ export const TrendingColumn: React.FC<TrendingColumnProps> = ({
             </p>
 
             <a
-              href={`/article/${insightArticle.slug}`}
+              href={`/news/${insightArticle.slug}`}
               onClick={(e) => {
                 if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
                   e.preventDefault();

@@ -215,7 +215,7 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
   const handleSelectArticleInForm = (slugVal: string) => {
     setFormSlug(slugVal);
     if (slugVal) {
-      setFormDestinationUrl(`/article/${slugVal}`);
+      setFormDestinationUrl(`/news/${slugVal}`);
     }
   };
 

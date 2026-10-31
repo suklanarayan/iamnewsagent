@@ -34,6 +34,12 @@ import {
   SEED_OPINIONS,
 } from '../data/seedData';
 import { getTrendingSettings, TrendingSettings } from '../utils/trendingManager';
+import {
+  getTodayInsightSettings,
+  resolveTodayInsightArticle,
+  TodayInsightSettings,
+  loadTodayInsightFromFirestore,
+} from '../utils/todayInsightManager';
 import { formatTimeAgo } from '../utils/statusUtils';
 
 export type NewsViewMode = 'bento' | 'grid' | 'list' | 'compact';
@@ -82,6 +88,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   // Dynamic Trending Settings State
   const [trendingSettings, setTrendingSettings] = useState<TrendingSettings>(() => getTrendingSettings());
 
+  // Dynamic Today's Insight Settings State
+  const [todayInsightSettings, setTodayInsightSettings] = useState<TodayInsightSettings>(() => getTodayInsightSettings());
+
   useEffect(() => {
     const handleUpdated = () => {
       setTrendingSettings(getTrendingSettings());
@@ -91,6 +100,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
     return () => {
       window.removeEventListener('trending-updated', handleUpdated);
       window.removeEventListener('storage', handleUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Initial fetch from Firestore
+    loadTodayInsightFromFirestore().then((res) => {
+      if (res) setTodayInsightSettings(res);
+    });
+
+    const handleInsightUpdated = () => {
+      setTodayInsightSettings(getTodayInsightSettings());
+    };
+    window.addEventListener('today-insight-updated', handleInsightUpdated);
+    window.addEventListener('storage', handleInsightUpdated);
+    return () => {
+      window.removeEventListener('today-insight-updated', handleInsightUpdated);
+      window.removeEventListener('storage', handleInsightUpdated);
     };
   }, []);
 
@@ -143,11 +169,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
       ? displayArticles
       : displayArticles.slice(0, 9);
 
-  // Today's Insight article (Durga Puja explainer or first explainer)
-  const insightArticle =
-    articles.find((a) => a.slug === 'durga-puja-2025-tradition-culture-modern-kolkata') ||
-    articles.find((a) => a.isExplainer) ||
-    articles[1];
+  // Today's Insight article dynamically resolved (pinned story or newest explainer / deep dive daily)
+  const insightArticle = resolveTodayInsightArticle(displayArticles, todayInsightSettings, heroArticle?.id);
 
   // Explainers & In-Depth Deep Dives (ensures full coverage without desktop blank space)
   const explicitExplainers = articles.filter((a) => a.isExplainer || a.category === 'Explainers');
@@ -193,8 +216,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
         window.open(dest, '_blank', 'noopener,noreferrer');
         return;
       }
-      if (dest.startsWith('/article/')) {
-        const slug = dest.replace('/article/', '');
+      if (dest.startsWith('/article/') || dest.startsWith('/news/')) {
+        const slug = dest.replace(/^\/(?:article|news)\//, '');
         const match = articles.find((a) => a.slug === slug || a.id === slug);
         if (match) {
           onSelectArticle(match);
@@ -449,6 +472,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     sectionTitle={trendingSettings.sectionTitle}
                     isTrendingEnabled={trendingSettings.isEnabled}
                     insightArticle={insightArticle}
+                    insightBadge={todayInsightSettings.customBadge || 'EXPLAINER BRIEF'}
                     onSelectTrending={handleSelectTrending}
                     onSelectArticle={onSelectArticle}
                   />

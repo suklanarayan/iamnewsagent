@@ -176,7 +176,7 @@ export const ExplainersRow: React.FC<ExplainersRowProps> = ({
 
                   <h4 className="text-base sm:text-lg md:text-xl font-bold font-serif text-slate-950 group-hover:text-red-700 transition-colors leading-snug">
                     <a
-                      href={`/article/${leadExplainer.slug}`}
+                      href={`/news/${leadExplainer.slug}`}
                       onClick={(e) => {
                         if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
                           e.preventDefault();
@@ -210,7 +210,7 @@ export const ExplainersRow: React.FC<ExplainersRowProps> = ({
                 </div>
 
                 <a
-                  href={`/article/${leadExplainer.slug}`}
+                  href={`/news/${leadExplainer.slug}`}
                   onClick={(e) => {
                     if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
                       e.preventDefault();
@@ -259,7 +259,7 @@ export const ExplainersRow: React.FC<ExplainersRowProps> = ({
 
                       <h4 className="text-sm sm:text-base font-bold font-serif text-slate-950 group-hover:text-red-700 transition-colors line-clamp-2 leading-snug">
                         <a
-                          href={`/article/${art.slug}`}
+                          href={`/news/${art.slug}`}
                           onClick={(e) => {
                             if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
                               e.preventDefault();
@@ -278,7 +278,7 @@ export const ExplainersRow: React.FC<ExplainersRowProps> = ({
                     </div>
 
                     <a
-                      href={`/article/${art.slug}`}
+                      href={`/news/${art.slug}`}
                       onClick={(e) => {
                         if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
                           e.preventDefault();
@@ -311,7 +311,7 @@ export const ExplainersRow: React.FC<ExplainersRowProps> = ({
                 {quickListExplainers.map((art, idx) => (
                   <a
                     key={art.id}
-                    href={`/article/${art.slug}`}
+                    href={`/news/${art.slug}`}
                     onClick={(e) => {
                       if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
                         e.preventDefault();

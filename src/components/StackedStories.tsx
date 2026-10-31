@@ -17,7 +17,7 @@ export const StackedStories: React.FC<StackedStoriesProps> = ({
       {articles.map((art) => (
         <a
           key={art.id}
-          href={`/article/${art.slug}`}
+          href={`/news/${art.slug}`}
           onClick={(e) => {
             if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
               e.preventDefault();

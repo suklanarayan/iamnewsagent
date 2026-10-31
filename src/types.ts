@@ -96,6 +96,7 @@ export interface Article {
   sourceUrl?: string;
   isBreaking: boolean;
   isExplainer?: boolean;
+  isTodayInsight?: boolean;
   publishedAt: string; // ISO 8601
   updatedAt: string;   // ISO 8601
   readTimeMinutes: number;

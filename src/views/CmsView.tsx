@@ -31,6 +31,8 @@ import {
   Megaphone,
   TrendingUp,
   X,
+  RotateCcw,
+  Star,
 } from 'lucide-react';
 import type {
   Article,
@@ -71,6 +73,14 @@ import {
   cleanNewsTitle,
   type RewrittenArticleResult,
 } from '../services/aiNewsService';
+import {
+  getTodayInsightSettings,
+  saveTodayInsightSettings,
+  setTodayInsightArticle,
+  resetTodayInsightToAutoRotate,
+  TodayInsightSettings,
+  resolveTodayInsightArticle,
+} from '../utils/todayInsightManager';
 
 interface CmsViewProps {
   articles: Article[];
@@ -134,6 +144,8 @@ export const CmsView: React.FC<CmsViewProps> = ({
   const [featuredImage, setFeaturedImage] = useState(CURATED_IMAGES[0].url);
   const [imageCaption, setImageCaption] = useState('');
   const [isBreaking, setIsBreaking] = useState(false);
+  const [isExplainer, setIsExplainer] = useState(false);
+  const [isTodayInsight, setIsTodayInsight] = useState(false);
   const [status, setStatus] = useState<PublicationStatus>('published');
   const [scheduledPublishAt, setScheduledPublishAt] = useState<string>('');
   const [reviewNotes, setReviewNotes] = useState<string>('');
@@ -146,6 +158,24 @@ export const CmsView: React.FC<CmsViewProps> = ({
   const [tagsInput, setTagsInput] = useState('');
   const [readTimeMinutes, setReadTimeMinutes] = useState(4);
   const [content, setContent] = useState('');
+
+  // Today's Insight Section Manager State
+  const [todayInsightSettings, setTodayInsightSettings] = useState<TodayInsightSettings>(() => getTodayInsightSettings());
+  const [insightCustomBadge, setInsightCustomBadge] = useState<string>(() => getTodayInsightSettings().customBadge || 'EXPLAINER BRIEF');
+
+  useEffect(() => {
+    const handleInsightUpdated = () => {
+      const s = getTodayInsightSettings();
+      setTodayInsightSettings(s);
+      setInsightCustomBadge(s.customBadge || 'EXPLAINER BRIEF');
+    };
+    window.addEventListener('today-insight-updated', handleInsightUpdated);
+    window.addEventListener('storage', handleInsightUpdated);
+    return () => {
+      window.removeEventListener('today-insight-updated', handleInsightUpdated);
+      window.removeEventListener('storage', handleInsightUpdated);
+    };
+  }, []);
 
   // Publication Date & Timestamp Management (defaults to true so newly edited/published news moves to front first)
   const [publishedAt, setPublishedAt] = useState<string>(() => new Date().toISOString());
@@ -286,6 +316,8 @@ export const CmsView: React.FC<CmsViewProps> = ({
     setFeaturedImage(CURATED_IMAGES[0].url);
     setImageCaption('');
     setIsBreaking(false);
+    setIsExplainer(false);
+    setIsTodayInsight(false);
     setStatus('published');
     setScheduledPublishAt('');
     setReviewNotes('');
@@ -527,6 +559,8 @@ export const CmsView: React.FC<CmsViewProps> = ({
     setFeaturedImage(art.featuredImage);
     setImageCaption(art.imageCaption || '');
     setIsBreaking(art.isBreaking);
+    setIsExplainer(Boolean(art.isExplainer || art.category === 'Explainers'));
+    setIsTodayInsight(Boolean(art.isTodayInsight || todayInsightSettings.articleId === art.id));
     setStatus(art.status || 'published');
     setScheduledPublishAt(art.scheduledPublishAt || '');
     setReviewNotes(art.reviewNotes || '');
@@ -584,6 +618,8 @@ export const CmsView: React.FC<CmsViewProps> = ({
           featuredImage,
           imageCaption,
           isBreaking,
+          isExplainer,
+          isTodayInsight,
           status,
           scheduledPublishAt: status === 'scheduled' && scheduledPublishAt ? scheduledPublishAt : undefined,
           reviewNotes: status === 'review' && reviewNotes.trim() ? reviewNotes.trim() : undefined,
@@ -599,9 +635,16 @@ export const CmsView: React.FC<CmsViewProps> = ({
           publishedAt: finalPublishedAt,
           updatedAt: now,
         });
+
+        if (isTodayInsight) {
+          setTodayInsightArticle(editingArticleId, insightCustomBadge);
+        } else if (todayInsightSettings.articleId === editingArticleId) {
+          resetTodayInsightToAutoRotate();
+        }
+
         showToast('Article updated with publication date and synced successfully.');
       } else {
-        await createArticle({
+        const created = await createArticle({
           headline,
           slug: cleanSlug,
           deck,
@@ -610,6 +653,8 @@ export const CmsView: React.FC<CmsViewProps> = ({
           featuredImage,
           imageCaption,
           isBreaking,
+          isExplainer,
+          isTodayInsight,
           status,
           scheduledPublishAt: status === 'scheduled' && scheduledPublishAt ? scheduledPublishAt : undefined,
           reviewNotes: status === 'review' && reviewNotes.trim() ? reviewNotes.trim() : undefined,
@@ -625,6 +670,11 @@ export const CmsView: React.FC<CmsViewProps> = ({
           publishedAt: finalPublishedAt,
           updatedAt: now,
         });
+
+        if (isTodayInsight && created?.id) {
+          setTodayInsightArticle(created.id, insightCustomBadge);
+        }
+
         showToast('New article published and saved permanently to Firestore.');
       }
 
@@ -636,6 +686,47 @@ export const CmsView: React.FC<CmsViewProps> = ({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Active Today's Insight article resolved from live repository
+  const activeTodayInsightArticle = resolveTodayInsightArticle(articles, todayInsightSettings);
+
+  const isArticleCurrentInsight = (art: Article) => {
+    if (todayInsightSettings.articleId) {
+      return todayInsightSettings.articleId === art.id;
+    }
+    return activeTodayInsightArticle?.id === art.id;
+  };
+
+  const handleToggleTodayInsight = (art: Article) => {
+    if (isArticleCurrentInsight(art)) {
+      resetTodayInsightToAutoRotate();
+      showToast(`Unpinned "${art.headline.slice(0, 45)}..." from Today's Insight (auto-rotating newest explainer).`);
+    } else {
+      setTodayInsightArticle(art.id, insightCustomBadge);
+      showToast(`⭐ Pinned "${art.headline.slice(0, 45)}..." as Today's Insight on Homepage!`);
+    }
+    onRefreshArticles();
+  };
+
+  const handleSelectTodayInsightDropdown = (articleId: string) => {
+    if (!articleId) {
+      resetTodayInsightToAutoRotate();
+      showToast("Today's Insight set to Auto-Rotate (newest explainer / news daily).");
+    } else {
+      setTodayInsightArticle(articleId, insightCustomBadge);
+      const chosen = articles.find((a) => a.id === articleId);
+      showToast(`⭐ Pinned "${chosen?.headline.slice(0, 45) || 'Story'}..." as Today's Insight.`);
+    }
+    onRefreshArticles();
+  };
+
+  const handleSaveInsightBadge = () => {
+    saveTodayInsightSettings({
+      ...todayInsightSettings,
+      customBadge: insightCustomBadge.trim() || 'EXPLAINER BRIEF',
+    });
+    showToast("Today's Insight badge updated and synced.");
   };
 
   // Fast 1-Click Status Lifecycle Transition from Table
@@ -1018,6 +1109,136 @@ export const CmsView: React.FC<CmsViewProps> = ({
             </div>
           </div>
 
+          {/* TODAY'S INSIGHT EDITORIAL SPOTLIGHT MANAGER */}
+          <div className="p-4 rounded-xl bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/30 border border-amber-500/30 shadow-lg space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-intel font-bold text-slate-100 flex items-center gap-2">
+                    <span>Today's Insight Spotlight Manager</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      {todayInsightSettings.articleId ? '📌 Pinned Story Active' : '🔄 Auto-Rotating Daily'}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Controls the featured "Today's Insight" card in the Homepage right column. Pick any story, add new news everyday, or auto-rotate.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {todayInsightSettings.articleId ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetTodayInsightToAutoRotate();
+                      showToast("Reset Today's Insight to Auto-Rotate newest explainer daily.");
+                      onRefreshArticles();
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-intel font-semibold flex items-center gap-1 border border-slate-700 transition-colors cursor-pointer"
+                    title="Clear pinned story and let newest explainer/news take the spotlight automatically"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Switch to Auto-Rotate</span>
+                  </button>
+                ) : (
+                  <span className="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>Auto-reflects newest news daily</span>
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
+              {/* Currently Live Card */}
+              <div className="lg:col-span-5 flex items-center gap-3 p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
+                {activeTodayInsightArticle?.featuredImage ? (
+                  <img
+                    src={activeTodayInsightArticle.featuredImage}
+                    alt={activeTodayInsightArticle.headline}
+                    className="w-16 h-12 object-cover rounded border border-slate-800 flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-16 h-12 bg-slate-800 rounded flex items-center justify-center text-slate-500 text-xs flex-shrink-0">
+                    No Image
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <span>{todayInsightSettings.customBadge || 'EXPLAINER BRIEF'}</span>
+                    <span className="text-slate-600">·</span>
+                    <span className="text-slate-400">{activeTodayInsightArticle?.category || 'News'}</span>
+                  </div>
+                  <div className="text-xs font-semibold text-slate-200 line-clamp-1 mt-0.5">
+                    {activeTodayInsightArticle?.headline || 'No article selected'}
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-mono mt-0.5 flex items-center gap-2">
+                    <span>{activeTodayInsightArticle ? new Date(activeTodayInsightArticle.publishedAt).toLocaleDateString() : ''}</span>
+                    {activeTodayInsightArticle && (
+                      <button
+                        type="button"
+                        onClick={() => handleEditArticle(activeTodayInsightArticle)}
+                        className="text-amber-400 hover:underline cursor-pointer"
+                      >
+                        Edit Story
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Dropdown Selector to immediately change Today's Insight */}
+              <div className="lg:col-span-4">
+                <label className="block text-[11px] font-intel text-slate-300 font-semibold mb-1">
+                  Select Story for Today's Insight:
+                </label>
+                <select
+                  value={todayInsightSettings.articleId || ''}
+                  onChange={(e) => handleSelectTodayInsightDropdown(e.target.value)}
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs font-intel focus:border-amber-500 focus:outline-hidden"
+                >
+                  <option value="">🔄 Auto-Rotate: Always Show Newest Explainer / Wire Story</option>
+                  {articles
+                    .filter((a) => (a.status || 'published') === 'published')
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.id === todayInsightSettings.articleId ? '⭐ [CURRENT] ' : ''}
+                        {a.headline.length > 55 ? a.headline.substring(0, 52) + '...' : a.headline} ({a.category})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Custom Badge Input */}
+              <div className="lg:col-span-3 flex items-end gap-1.5">
+                <div className="flex-1">
+                  <label className="block text-[11px] font-intel text-slate-300 font-semibold mb-1">
+                    Badge Label:
+                  </label>
+                  <input
+                    type="text"
+                    value={insightCustomBadge}
+                    onChange={(e) => setInsightCustomBadge(e.target.value)}
+                    placeholder="EXPLAINER BRIEF"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs font-intel uppercase"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSaveInsightBadge}
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 text-xs font-intel font-bold transition-colors cursor-pointer"
+                  title="Save badge label"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Status Filter Tabs */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-800 text-xs font-intel">
             <button
@@ -1105,10 +1326,21 @@ export const CmsView: React.FC<CmsViewProps> = ({
                     return (
                       <tr key={art.id} className="hover:bg-slate-800/40 transition-colors">
                         <td className="p-3.5 max-w-sm">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             {art.isBreaking && (
                               <span className="px-1.5 py-0.5 rounded bg-red-600 text-white text-[9px] font-bold">
                                 FLASH
+                              </span>
+                            )}
+                            {isArticleCurrentInsight(art) && (
+                              <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-bold flex items-center gap-1">
+                                <Sparkles className="w-2.5 h-2.5" />
+                                <span>TODAY'S INSIGHT</span>
+                              </span>
+                            )}
+                            {art.isExplainer && (
+                              <span className="px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 border border-purple-800 text-[9px] font-bold">
+                                EXPLAINER
                               </span>
                             )}
                             <span className="font-bold text-slate-100 font-editorial text-sm line-clamp-1">
@@ -1208,6 +1440,27 @@ export const CmsView: React.FC<CmsViewProps> = ({
                             title="Move this article to the very front as the lead Hero story on the homepage"
                           >
                             <span>⚡ Bump to Front (Lead)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleTodayInsight(art)}
+                            className={`text-[10px] font-bold font-intel block mt-1 transition-colors text-left flex items-center gap-1 cursor-pointer ${
+                              isArticleCurrentInsight(art)
+                                ? 'text-amber-400 hover:text-amber-300'
+                                : 'text-slate-400 hover:text-amber-400'
+                            }`}
+                            title="Toggle this article as Today's Insight spotlight on the homepage"
+                          >
+                            {isArticleCurrentInsight(art) ? (
+                              <>
+                                <Star className="w-2.5 h-2.5 fill-current text-amber-400" />
+                                <span className="text-amber-300">⭐ Active Today's Insight</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>📌 Set as Today's Insight</span>
+                              </>
+                            )}
                           </button>
                         </td>
                         <td className="p-3.5 text-right whitespace-nowrap space-x-2">
@@ -1612,6 +1865,48 @@ export const CmsView: React.FC<CmsViewProps> = ({
                     checked={isBreaking}
                     onChange={(e) => setIsBreaking(e.target.checked)}
                     className="w-4 h-4 rounded text-amber-500 bg-slate-900 border-slate-700"
+                  />
+                </div>
+
+                {/* Today's Insight Spotlight Toggle */}
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className={`w-4 h-4 ${isTodayInsight ? 'text-amber-400' : 'text-slate-400'}`} />
+                    <div>
+                      <span className="text-xs font-intel font-semibold text-slate-200 block">
+                        Today's Insight Spotlight
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        Feature in "Today's Insight" card on Homepage
+                      </span>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={isTodayInsight}
+                    onChange={(e) => setIsTodayInsight(e.target.checked)}
+                    className="w-4 h-4 rounded text-amber-500 bg-slate-900 border-slate-700 cursor-pointer"
+                  />
+                </div>
+
+                {/* Explainer Brief Toggle */}
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <FileText className={`w-4 h-4 ${isExplainer ? 'text-amber-400' : 'text-slate-400'}`} />
+                    <div>
+                      <span className="text-xs font-intel font-semibold text-slate-200 block">
+                        Explainer Brief Analysis
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        Mark as in-depth explainer deep dive
+                      </span>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={isExplainer}
+                    onChange={(e) => setIsExplainer(e.target.checked)}
+                    className="w-4 h-4 rounded text-amber-500 bg-slate-900 border-slate-700 cursor-pointer"
                   />
                 </div>
 

@@ -70,7 +70,7 @@ export const TopStoryHero: React.FC<TopStoryHeroProps> = ({
 
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-serif text-slate-950 group-hover:text-red-700 transition-colors leading-[1.18] [text-wrap:balance]">
             <a
-              href={`/article/${article.slug}`}
+              href={`/news/${article.slug}`}
               onClick={(e) => {
                 if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
                   e.preventDefault();
@@ -136,7 +136,7 @@ export const TopStoryHero: React.FC<TopStoryHeroProps> = ({
       {/* Read full article prompt */}
       <div className="px-4 sm:px-6 pb-5 pt-1">
         <a
-          href={`/article/${article.slug}`}
+          href={`/news/${article.slug}`}
           onClick={(e) => {
             if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
               e.preventDefault();

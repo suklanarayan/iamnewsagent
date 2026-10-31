@@ -28,7 +28,7 @@ export function getTrendingSettings(): TrendingSettings {
           isEnabled: typeof parsed.isEnabled === 'boolean' ? parsed.isEnabled : true,
           items: parsed.items.map((it: TrendingItem) => ({
             ...it,
-            destinationUrl: it.destinationUrl || (it.slug ? `/article/${it.slug}` : undefined),
+            destinationUrl: it.destinationUrl || (it.slug ? `/news/${it.slug}` : undefined),
           })),
         };
       }
