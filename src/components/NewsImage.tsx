@@ -7,6 +7,8 @@ interface NewsImageProps {
   className?: string;
   category?: string;
   aspectRatio?: '16:9' | '4:3' | '1:1' | 'auto';
+  width?: number;
+  height?: number;
   loading?: 'lazy' | 'eager';
   priority?: boolean;
 }
@@ -107,11 +109,27 @@ export const NewsImage: React.FC<NewsImageProps> = ({
   alt,
   className = '',
   category = 'India',
+  aspectRatio = '16:9',
+  width,
+  height,
   loading = 'lazy',
   priority = false,
 }) => {
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // Compute CSS aspect ratio and fallback dimensions
+  const aspectStyle =
+    aspectRatio === '16:9'
+      ? '16 / 9'
+      : aspectRatio === '4:3'
+      ? '4 / 3'
+      : aspectRatio === '1:1'
+      ? '1 / 1'
+      : undefined;
+
+  const defaultWidth = width || (aspectRatio === '1:1' ? 600 : aspectRatio === '4:3' ? 800 : 1200);
+  const defaultHeight = height || (aspectRatio === '1:1' ? 600 : aspectRatio === '4:3' ? 600 : 675);
 
   // Normalize image source
   let resolvedSrc = (src || '').trim();
@@ -132,6 +150,7 @@ export const NewsImage: React.FC<NewsImageProps> = ({
         className={`w-full h-full relative overflow-hidden bg-gradient-to-br ${theme.bg} flex flex-col justify-between p-4 sm:p-5 select-none ${className}`}
         role="img"
         aria-label={alt}
+        style={{ aspectRatio: aspectStyle }}
       >
         {/* Subtle geometric hairline pattern */}
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
@@ -161,7 +180,10 @@ export const NewsImage: React.FC<NewsImageProps> = ({
   }
 
   return (
-    <div className={`relative w-full h-full overflow-hidden bg-slate-900 ${className}`}>
+    <div
+      className={`relative w-full h-full overflow-hidden bg-slate-900 ${className}`}
+      style={{ aspectRatio: aspectStyle }}
+    >
       {/* Skeleton loader backdrop while image streams in */}
       {!isLoaded && (
         <div className="absolute inset-0 bg-slate-800 animate-pulse flex items-center justify-center">
@@ -172,11 +194,15 @@ export const NewsImage: React.FC<NewsImageProps> = ({
       <img
         src={resolvedSrc}
         alt={alt}
+        width={defaultWidth}
+        height={defaultHeight}
         loading={priority ? 'eager' : loading}
         decoding="async"
+        fetchPriority={priority ? 'high' : 'auto'}
         referrerPolicy="no-referrer"
         onLoad={() => setIsLoaded(true)}
         onError={() => setHasError(true)}
+        style={{ aspectRatio: aspectStyle }}
         className={`w-full h-full object-cover transition-opacity duration-300 ${
           isLoaded ? 'opacity-100' : 'opacity-0'
         }`}

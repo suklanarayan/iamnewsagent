@@ -460,14 +460,17 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
               headline={article.headline}
             />
 
-            {/* Featured Image */}
+            {/* Featured Image (Zero CLS with aspect-video and width/height) */}
             {article.featuredImage && (
               <figure className="space-y-2">
-                <div className="rounded-2xl overflow-hidden bg-slate-900 max-h-[500px] border border-slate-200">
+                <div className="rounded-2xl overflow-hidden bg-slate-900 aspect-video w-full border border-slate-200">
                   <NewsImage
                     src={article.featuredImage}
                     alt={article.headline}
                     category={article.category}
+                    aspectRatio="16:9"
+                    width={1200}
+                    height={675}
                     priority={true}
                     className="w-full h-full object-cover"
                   />
@@ -493,12 +496,18 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
                     const src = imgMatch[2];
                     return (
                       <figure key={idx} className="my-6 rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 shadow-sm">
-                        <img
-                          src={src}
-                          alt={caption || 'Article Visual'}
-                          className="w-full h-auto object-cover max-h-[500px]"
-                          loading="lazy"
-                        />
+                        <div className="aspect-video w-full overflow-hidden bg-slate-900">
+                          <img
+                            src={src}
+                            alt={caption || 'Article Visual'}
+                            width={1200}
+                            height={675}
+                            style={{ aspectRatio: '16/9' }}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </div>
                         {caption && (
                           <figcaption className="p-2.5 text-xs text-slate-500 font-editorial italic bg-slate-50 border-t border-slate-100 text-center">
                             {caption}

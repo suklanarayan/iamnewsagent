@@ -1,45 +1,18 @@
 // Vercel Serverless Function: GET /news-sitemap.xml
-import { SEED_ARTICLES } from '../src/data/seedData';
+import { getAllServerArticles, generateNewsSitemapXml } from '../src/server/ssrEngine';
 
-function escapeXml(unsafe: string): string {
-  if (!unsafe) return '';
-  return unsafe
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
+export default async function handler(req: any, res: any) {
+  try {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=900, stale-while-revalidate=86400');
 
-export default function handler(req: any, res: any) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Content-Type', 'application/xml; charset=utf-8');
-  res.setHeader('Cache-Control', 'public, max-age=1800, s-maxage=1800');
+    const articles = await getAllServerArticles();
+    const xml = generateNewsSitemapXml(articles);
 
-  const baseUrl = 'https://iamquickagent.com';
-
-  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-  xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n`;
-
-  for (const article of SEED_ARTICLES) {
-    const pubDate = article.publishedAt || new Date().toISOString();
-    xml += `  <url>\n`;
-    xml += `    <loc>${baseUrl}/article/${encodeURIComponent(article.slug)}</loc>\n`;
-    xml += `    <news:news>\n`;
-    xml += `      <news:publication>\n`;
-    xml += `        <news:name>iamquickagent.com</news:name>\n`;
-    xml += `        <news:language>en</news:language>\n`;
-    xml += `      </news:publication>\n`;
-    xml += `      <news:publication_date>${pubDate}</news:publication_date>\n`;
-    xml += `      <news:title>${escapeXml(article.headline)}</news:title>\n`;
-    if (article.tags && article.tags.length > 0) {
-      xml += `      <news:keywords>${escapeXml(article.tags.join(', '))}</news:keywords>\n`;
-    }
-    xml += `    </news:news>\n`;
-    xml += `  </url>\n`;
+    res.status(200).send(xml);
+  } catch (err: any) {
+    console.error('Error generating dynamic news-sitemap.xml:', err?.message || err);
+    res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>');
   }
-
-  xml += `</urlset>`;
-
-  res.status(200).send(xml);
 }

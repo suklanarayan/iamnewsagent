@@ -17,6 +17,15 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from './firebase-applet-config.json';
 import { SEED_ARTICLES, SEED_AUTHORS, SEED_LIVE_STORIES } from './src/data/seedData';
+import {
+  getAllServerArticles,
+  getServerArticleBySlug,
+  getServerAuthorById,
+  renderArticleSsrHtml,
+  renderHomeSsrHtml,
+  generateSitemapXml,
+  generateNewsSitemapXml,
+} from './src/server/ssrEngine';
 
 const firebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const serverDb = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
@@ -1336,95 +1345,32 @@ Sitemap: https://iamquickagent.com/news-sitemap.xml
   res.send(robots);
 });
 
-// 2. STANDARD XML SITEMAP (INDEXES HOMEPAGE, CATEGORIES, AUTHORS & ALL ARTICLES)
-app.get('/sitemap.xml', (_req, res) => {
-  const baseUrl = 'https://iamquickagent.com';
-  const categories = [
-    'India', 'World', 'Business', 'Technology', 'Markets',
-    'Science', 'Health', 'Sports', 'Lifestyle', 'Entertainment', 'Explainers', 'Opinion'
-  ];
-
-  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-  xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
-
-  // Homepage
-  xml += `  <url>\n`;
-  xml += `    <loc>${baseUrl}/</loc>\n`;
-  xml += `    <lastmod>${new Date().toISOString()}</lastmod>\n`;
-  xml += `    <changefreq>always</changefreq>\n`;
-  xml += `    <priority>1.0</priority>\n`;
-  xml += `  </url>\n`;
-
-  // Categories
-  for (const cat of categories) {
-    xml += `  <url>\n`;
-    xml += `    <loc>${baseUrl}/?category=${encodeURIComponent(cat)}</loc>\n`;
-    xml += `    <changefreq>hourly</changefreq>\n`;
-    xml += `    <priority>0.8</priority>\n`;
-    xml += `  </url>\n`;
+// 2. STANDARD XML SITEMAP (DYNAMIC: INCLUDES ALL FIRESTORE ARTICLES + SEEDS)
+app.get('/sitemap.xml', async (_req, res) => {
+  try {
+    const articles = await getAllServerArticles();
+    const xml = generateSitemapXml(articles);
+    res.header('Content-Type', 'application/xml; charset=utf-8');
+    res.header('Cache-Control', 'public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400');
+    res.send(xml);
+  } catch (err: any) {
+    console.error('Error generating /sitemap.xml:', err);
+    res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>');
   }
-
-  // Authors
-  for (const author of SEED_AUTHORS) {
-    xml += `  <url>\n`;
-    xml += `    <loc>${baseUrl}/author/${encodeURIComponent(author.id)}</loc>\n`;
-    xml += `    <changefreq>weekly</changefreq>\n`;
-    xml += `    <priority>0.6</priority>\n`;
-    xml += `  </url>\n`;
-  }
-
-  // Articles
-  for (const article of SEED_ARTICLES) {
-    const lastMod = article.updatedAt || article.publishedAt || new Date().toISOString();
-    xml += `  <url>\n`;
-    xml += `    <loc>${baseUrl}/article/${encodeURIComponent(article.slug)}</loc>\n`;
-    xml += `    <lastmod>${lastMod}</lastmod>\n`;
-    xml += `    <changefreq>daily</changefreq>\n`;
-    xml += `    <priority>0.9</priority>\n`;
-    if (article.featuredImage) {
-      xml += `    <image:image>\n`;
-      xml += `      <image:loc>${escapeXml(article.featuredImage)}</image:loc>\n`;
-      xml += `      <image:title>${escapeXml(article.headline)}</image:title>\n`;
-      xml += `    </image:image>\n`;
-    }
-    xml += `  </url>\n`;
-  }
-
-  xml += `</urlset>`;
-
-  res.header('Content-Type', 'application/xml; charset=utf-8');
-  res.send(xml);
 });
 
-// 3. GOOGLE NEWS SITEMAP (NEWS SPECIFICATION WITH PUBLICATION & KEYWORDS)
-app.get('/news-sitemap.xml', (_req, res) => {
-  const baseUrl = 'https://iamquickagent.com';
-
-  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-  xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n`;
-
-  for (const article of SEED_ARTICLES) {
-    const pubDate = article.publishedAt || new Date().toISOString();
-    xml += `  <url>\n`;
-    xml += `    <loc>${baseUrl}/article/${encodeURIComponent(article.slug)}</loc>\n`;
-    xml += `    <news:news>\n`;
-    xml += `      <news:publication>\n`;
-    xml += `        <news:name>iamquickagent.com</news:name>\n`;
-    xml += `        <news:language>en</news:language>\n`;
-    xml += `      </news:publication>\n`;
-    xml += `      <news:publication_date>${pubDate}</news:publication_date>\n`;
-    xml += `      <news:title>${escapeXml(article.headline)}</news:title>\n`;
-    if (article.tags && article.tags.length > 0) {
-      xml += `      <news:keywords>${escapeXml(article.tags.join(', '))}</news:keywords>\n`;
-    }
-    xml += `    </news:news>\n`;
-    xml += `  </url>\n`;
+// 3. GOOGLE NEWS SITEMAP (NEWS SPECIFICATION WITH REAL-TIME FIRESTORE NEWS)
+app.get('/news-sitemap.xml', async (_req, res) => {
+  try {
+    const articles = await getAllServerArticles();
+    const xml = generateNewsSitemapXml(articles);
+    res.header('Content-Type', 'application/xml; charset=utf-8');
+    res.header('Cache-Control', 'public, max-age=900, s-maxage=1800, stale-while-revalidate=86400');
+    res.send(xml);
+  } catch (err: any) {
+    console.error('Error generating /news-sitemap.xml:', err);
+    res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>');
   }
-
-  xml += `</urlset>`;
-
-  res.header('Content-Type', 'application/xml; charset=utf-8');
-  res.send(xml);
 });
 
 // 4. RSS 2.0 & ATOM SYNDICATION FEEDS
@@ -1517,90 +1463,17 @@ function escapeHtmlMeta(unsafe: string): string {
     .replace(/'/g, '&#39;');
 }
 
-// SEO Pre-rendering & Metadata Generator for Search Engines & Social Platforms
-function renderHtmlWithSeo(urlPath: string, templateHtml: string): string {
-  let html = templateHtml;
+// SEO & Full Server-Side Render (SSR) for Search Crawlers and Instant Mobile LCP
+async function renderSsrHtmlResponse(urlPath: string, templateHtml: string, categoryParam?: string): Promise<string> {
   const baseUrl = 'https://iamquickagent.com';
 
   // 1. Article/News Page: /news/:slug or /article/:slug
   const articleMatch = urlPath.match(/^\/(?:news|article)\/([a-zA-Z0-9-_]+)/);
   if (articleMatch) {
     const slug = articleMatch[1];
-    const article = SEED_ARTICLES.find((a) => a.slug === slug);
+    const article = await getServerArticleBySlug(slug);
     if (article) {
-      const pageTitle = `${article.headline} - iamquickagent.com`;
-      const desc = escapeHtmlMeta(article.deck || article.keyTakeaways?.[0] || 'Live breaking news and intelligence from iamquickagent.com');
-      const canonicalUrl = `${baseUrl}/news/${encodeURIComponent(article.slug)}`;
-      const img = article.featuredImage || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&h=630&q=85';
-
-      html = html.replace(/<title>.*?<\/title>/i, `<title>${escapeHtmlMeta(pageTitle)}</title>`);
-      html = html.replace(/<meta name="description" content=".*?" \/>/i, `<meta name="description" content="${desc}" />`);
-
-      // OpenGraph
-      html = html.replace(/<meta property="og:title" content=".*?" \/>/i, `<meta property="og:title" content="${escapeHtmlMeta(pageTitle)}" />`);
-      html = html.replace(/<meta property="og:description" content=".*?" \/>/i, `<meta property="og:description" content="${desc}" />`);
-      html = html.replace(/<meta property="og:url" content=".*?" \/>/i, `<meta property="og:url" content="${canonicalUrl}" />`);
-      html = html.replace(/<meta property="og:type" content=".*?" \/>/i, `<meta property="og:type" content="article" />`);
-      html = html.replace(/<meta property="og:image" content=".*?" \/>/i, `<meta property="og:image" content="${img}" />`);
-
-      // Twitter Cards
-      html = html.replace(/<meta name="twitter:title" content=".*?" \/>/i, `<meta name="twitter:title" content="${escapeHtmlMeta(pageTitle)}" />`);
-      html = html.replace(/<meta name="twitter:description" content=".*?" \/>/i, `<meta name="twitter:description" content="${desc}" />`);
-      html = html.replace(/<meta name="twitter:image" content=".*?" \/>/i, `<meta name="twitter:image" content="${img}" />`);
-
-      // Self-referencing Canonical URL
-      const canonicalTag = `<link rel="canonical" href="${canonicalUrl}" />`;
-      if (html.includes('rel="canonical"')) {
-        html = html.replace(/<link[^>]*rel="canonical"[^>]*>/i, canonicalTag);
-      } else {
-        html = html.replace('</head>', `    ${canonicalTag}\n  </head>`);
-      }
-
-      // JSON-LD NewsArticle structured data
-      const jsonLd = {
-        '@context': 'https://schema.org',
-        '@type': 'NewsArticle',
-        'mainEntityOfPage': {
-          '@type': 'WebPage',
-          '@id': canonicalUrl,
-        },
-        'headline': article.headline,
-        'description': article.deck || desc,
-        'image': [img],
-        'datePublished': article.publishedAt,
-        'dateModified': article.updatedAt || article.publishedAt,
-        'articleSection': article.category,
-        'author': {
-          '@type': 'Person',
-          'name': (article as any).author?.name || article.authorId || 'iamquickagent.com Newsroom',
-        },
-        'publisher': {
-          '@type': 'NewsMediaOrganization',
-          'name': 'iamquickagent.com',
-          'url': baseUrl,
-          'logo': {
-            '@type': 'ImageObject',
-            'url': `${baseUrl}/favicon.svg`,
-          },
-        },
-      };
-      html = html.replace('</head>', `    <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>\n  </head>`);
-
-      // Crawlable DOM inside root for Googlebot and non-JS search crawlers
-      const noscriptHtml = `
-        <noscript>
-          <article itemscope itemtype="https://schema.org/NewsArticle">
-            <h1 itemprop="headline">${article.headline}</h1>
-            <p itemprop="description"><em>${article.deck || ''}</em></p>
-            <div>
-              <p>Category: ${article.category} | Published: ${article.publishedAt}</p>
-              <div>${article.content || ''}</div>
-            </div>
-          </article>
-        </noscript>
-      `;
-      html = html.replace('<div id="root"></div>', `<div id="root">${noscriptHtml}</div>`);
-      return html;
+      return renderArticleSsrHtml(article, templateHtml);
     }
   }
 
@@ -1608,8 +1481,9 @@ function renderHtmlWithSeo(urlPath: string, templateHtml: string): string {
   const authorMatch = urlPath.match(/^\/author\/([a-zA-Z0-9-_]+)/);
   if (authorMatch) {
     const authorId = authorMatch[1];
-    const author = SEED_AUTHORS.find((a) => a.id === authorId);
+    const author = getServerAuthorById(authorId);
     if (author) {
+      let html = templateHtml;
       const pageTitle = `${author.name} - Editorial Profile & Wire Dispatches | iamquickagent.com`;
       const desc = escapeHtmlMeta(`${author.bio || author.role} at iamquickagent.com. Explore published investigative articles and intelligence briefings.`);
       const canonicalUrl = `${baseUrl}/author/${encodeURIComponent(author.id)}`;
@@ -1630,19 +1504,9 @@ function renderHtmlWithSeo(urlPath: string, templateHtml: string): string {
     }
   }
 
-  // 3. Homepage or Category default: Ensure valid canonical URL
-  const canonicalUrl = urlPath.startsWith('/?category=')
-    ? `${baseUrl}${urlPath}`
-    : `${baseUrl}/`;
-
-  const canonicalTag = `<link rel="canonical" href="${canonicalUrl}" />`;
-  if (html.includes('rel="canonical"')) {
-    html = html.replace(/<link[^>]*rel="canonical"[^>]*>/i, canonicalTag);
-  } else {
-    html = html.replace('</head>', `    ${canonicalTag}\n  </head>`);
-  }
-
-  return html;
+  // 3. Homepage or Category route: render top stories and headlines directly in HTML
+  const allArticles = await getAllServerArticles();
+  return renderHomeSsrHtml(allArticles, templateHtml, categoryParam);
 }
 
 // Start server
@@ -1653,14 +1517,20 @@ async function start() {
       appType: 'spa',
     });
 
-    // Intercept HTML pages to inject dynamic SEO metadata and canonical tags
+    // Intercept HTML pages to inject dynamic SSR markup, high-priority preload, and instant hydration
     app.get(['/', '/news/:slug', '/article/:slug', '/author/:id'], async (req, res, next) => {
       try {
         const indexPath = path.resolve(process.cwd(), 'index.html');
         const rawHtml = fs.readFileSync(indexPath, 'utf-8');
-        const seoHtml = renderHtmlWithSeo(req.path, rawHtml);
-        const transformedHtml = await vite.transformIndexHtml(req.originalUrl, seoHtml);
-        res.status(200).set({ 'Content-Type': 'text/html; charset=utf-8' }).end(transformedHtml);
+        const categoryParam = typeof req.query.category === 'string' ? req.query.category : undefined;
+        const ssrHtml = await renderSsrHtmlResponse(req.path, rawHtml, categoryParam);
+        const transformedHtml = await vite.transformIndexHtml(req.originalUrl, ssrHtml);
+        res.status(200)
+          .set({
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400',
+          })
+          .end(transformedHtml);
       } catch (e) {
         next(e);
       }
@@ -1669,8 +1539,12 @@ async function start() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath, { index: false }));
-    app.get('*', (req, res) => {
+    app.use(express.static(distPath, {
+      index: false,
+      maxAge: '1y',
+      immutable: true,
+    }));
+    app.get('*', async (req, res) => {
       const indexPath = path.join(distPath, 'index.html');
       let rawHtml = '';
       try {
@@ -1678,8 +1552,14 @@ async function start() {
       } catch {
         rawHtml = '<!doctype html><html><head><title>iamquickagent.com</title></head><body><div id="root"></div></body></html>';
       }
-      const seoHtml = renderHtmlWithSeo(req.path, rawHtml);
-      res.status(200).set({ 'Content-Type': 'text/html; charset=utf-8' }).end(seoHtml);
+      const categoryParam = typeof req.query.category === 'string' ? req.query.category : undefined;
+      const ssrHtml = await renderSsrHtmlResponse(req.path, rawHtml, categoryParam);
+      res.status(200)
+        .set({
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400',
+        })
+        .end(ssrHtml);
     });
   }
 

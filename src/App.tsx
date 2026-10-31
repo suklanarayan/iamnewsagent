@@ -27,9 +27,27 @@ export default function App() {
   const [liveStories, setLiveStories] = useState<LiveStory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Check if server injected pre-rendered article for instant zero-LCP hydration
+  const initialArticle: Article | null =
+    typeof window !== 'undefined' && (window as any).__INITIAL_ARTICLE__
+      ? (window as any).__INITIAL_ARTICLE__
+      : null;
+
+  const isInitialArticleRoute =
+    typeof window !== 'undefined' &&
+    /^\/(?:news|article)\/[a-zA-Z0-9-_]+/.test(window.location.pathname);
+
   // Navigation State
-  const [currentView, setCurrentView] = useState<'home' | 'article' | 'author' | 'cms'>('home');
-  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [currentView, setCurrentView] = useState<'home' | 'article' | 'author' | 'cms'>(() => {
+    if (typeof window !== 'undefined') {
+      if (window.location.pathname.startsWith('/cms') || window.location.hash === '#cms') return 'cms';
+      if (initialArticle || isInitialArticleRoute) return 'article';
+      if (window.location.pathname.startsWith('/author/')) return 'author';
+    }
+    return 'home';
+  });
+
+  const [selectedArticle, setSelectedArticle] = useState<Article | null>(initialArticle);
   const [selectedAuthorId, setSelectedAuthorId] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -46,7 +64,11 @@ export default function App() {
         getAuthors(),
         getLiveStories(),
       ]);
-      setArticles(fetchedArticles);
+      if (initialArticle && !fetchedArticles.some((a) => a.id === initialArticle.id)) {
+        setArticles([initialArticle, ...fetchedArticles]);
+      } else {
+        setArticles(fetchedArticles);
+      }
       setAuthors(fetchedAuthors);
       setLiveStories(fetchedStories);
       setStorageStatus(getStorageStatus());
@@ -55,7 +77,7 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [initialArticle]);
 
   useEffect(() => {
     loadData();
@@ -149,6 +171,12 @@ export default function App() {
       const articleMatch = pathname.match(/\/(?:news|article)\/([a-zA-Z0-9-_]+)/);
       if (articleMatch) {
         const slug = articleMatch[1];
+        if (initialArticle && (initialArticle.slug === slug || initialArticle.id === slug)) {
+          setSelectedArticle(initialArticle);
+          setCurrentView('article');
+          incrementArticleViews(initialArticle.id);
+          return;
+        }
         const art = await getArticleBySlug(slug);
         if (art) {
           setSelectedArticle(art);
