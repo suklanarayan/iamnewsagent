@@ -1532,7 +1532,8 @@ async function start() {
           })
           .end(transformedHtml);
       } catch (e) {
-        next(e);
+        console.warn('SSR rendering encountered error, falling back to Vite middleware:', e);
+        next();
       }
     });
 
@@ -1563,8 +1564,12 @@ async function start() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`iamnewsagent server running on http://0.0.0.0:${PORT}`);
+  });
+
+  server.on('error', (err: any) => {
+    console.error('Server listen error:', err);
   });
 }
 
