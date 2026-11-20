@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import { SEED_ARTICLES, SEED_AUTHORS } from '../data/seedData';
-import { LEGAL_PAGE_LIST, type LegalPageData } from '../data/legalPages';
-import type { Article, Author } from '../types';
+import { fileURLToPath } from 'url';
+import { SEED_ARTICLES, SEED_AUTHORS } from '../data/seedData.js';
+import { LEGAL_PAGE_LIST, type LegalPageData } from '../data/legalPages.js';
+import type { Article, Author } from '../types.js';
 
 interface FirebasePublicConfig {
   projectId: string;
@@ -18,6 +19,18 @@ function getServerFirebaseConfig(): FirebasePublicConfig {
     path.resolve(process.cwd(), 'firebase-applet-config.json'),
     path.resolve(process.cwd(), '..', 'firebase-applet-config.json'),
   ];
+
+  try {
+    if (typeof import.meta !== 'undefined' && import.meta.url) {
+      const currentDir = path.dirname(fileURLToPath(import.meta.url));
+      candidatePaths.push(
+        path.resolve(currentDir, '..', 'firebase-applet-config.json'),
+        path.resolve(currentDir, '..', '..', 'firebase-applet-config.json')
+      );
+    }
+  } catch {
+    // CommonJS bundle fallback uses process.cwd()
+  }
 
   for (const cfgPath of candidatePaths) {
     try {

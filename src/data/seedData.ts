@@ -1,4 +1,4 @@
-import type { Article, Author, BannerAd, LiveStory, TrendingItem, OpinionPiece } from '../types';
+import type { Article, Author, BannerAd, LiveStory, TrendingItem, OpinionPiece } from '../types.js';
 
 export const SEED_AUTHORS: Author[] = [
   {
