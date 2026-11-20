@@ -1,7 +1,15 @@
 {
   "version": 2,
-  "buildCommand": "npm run build && rm -f dist/index.html",
+  "buildCommand": "npm run build:vercel",
   "outputDirectory": "dist",
+  "functions": {
+    "api/ssr.ts": {
+      "includeFiles": "firebase-applet-config.json"
+    },
+    "api/seo.ts": {
+      "includeFiles": "firebase-applet-config.json"
+    }
+  },
   "redirects": [
     {
       "source": "/article/:slug",
@@ -59,31 +67,31 @@
       ]
     },
     {
-      "source": "/news/.*",
+      "source": "/news/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=60, s-maxage=300, stale-while-revalidate=86400" }
       ]
     }
   ],
   "rewrites": [
-    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
-    { "source": "/news-sitemap.xml", "destination": "/api/news-sitemap" },
-    { "source": "/robots.txt", "destination": "/api/robots" },
-    { "source": "/ai.txt", "destination": "/api/ai" },
-    { "source": "/rss.xml", "destination": "/api/rss" },
-    { "source": "/feed.xml", "destination": "/api/rss" },
-    { "source": "/llms.txt", "destination": "/api/llms" },
-    { "source": "/llms-full.txt", "destination": "/api/llms" },
-    { "source": "/news/:slug", "destination": "/api/ssr" },
-    { "source": "/author/:id", "destination": "/api/ssr" },
-    { "source": "/privacy-policy", "destination": "/api/ssr" },
-    { "source": "/terms-of-service", "destination": "/api/ssr" },
-    { "source": "/cookie-policy", "destination": "/api/ssr" },
-    { "source": "/editorial-standards", "destination": "/api/ssr" },
-    { "source": "/", "destination": "/api/ssr" },
+    { "source": "/sitemap.xml", "destination": "/api/seo?type=sitemap" },
+    { "source": "/news-sitemap.xml", "destination": "/api/seo?type=news-sitemap" },
+    { "source": "/robots.txt", "destination": "/api/seo?type=robots" },
+    { "source": "/ai.txt", "destination": "/api/seo?type=ai" },
+    { "source": "/rss.xml", "destination": "/api/seo?type=rss" },
+    { "source": "/feed.xml", "destination": "/api/seo?type=rss" },
+    { "source": "/llms.txt", "destination": "/api/seo?type=llms" },
+    { "source": "/llms-full.txt", "destination": "/api/seo?type=llms-full" },
+    { "source": "/news/:slug", "destination": "/api/ssr?__route=/news/:slug" },
+    { "source": "/author/:id", "destination": "/api/ssr?__route=/author/:id" },
+    { "source": "/privacy-policy", "destination": "/api/ssr?__route=/privacy-policy" },
+    { "source": "/terms-of-service", "destination": "/api/ssr?__route=/terms-of-service" },
+    { "source": "/cookie-policy", "destination": "/api/ssr?__route=/cookie-policy" },
+    { "source": "/editorial-standards", "destination": "/api/ssr?__route=/editorial-standards" },
+    { "source": "/", "destination": "/api/ssr?__route=/" },
     {
       "source": "/((?!api/|assets/|robots\\.txt|ai\\.txt|sitemap\\.xml|news-sitemap\\.xml|rss\\.xml|feed\\.xml|llms\\.txt|llms-full\\.txt|manifest\\.webmanifest|.*\\.[a-zA-Z0-9]+$).*)",
-      "destination": "/api/ssr"
+      "destination": "/api/ssr?__route=/$1"
     }
   ]
 }

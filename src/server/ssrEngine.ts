@@ -1,7 +1,45 @@
+import fs from 'fs';
+import path from 'path';
 import { SEED_ARTICLES, SEED_AUTHORS } from '../data/seedData';
 import { LEGAL_PAGE_LIST, type LegalPageData } from '../data/legalPages';
 import type { Article, Author } from '../types';
-import firebaseConfig from '../../firebase-applet-config.json';
+
+interface FirebasePublicConfig {
+  projectId: string;
+  apiKey: string;
+  firestoreDatabaseId?: string;
+}
+
+let cachedFirebaseConfig: FirebasePublicConfig | null = null;
+function getServerFirebaseConfig(): FirebasePublicConfig {
+  if (cachedFirebaseConfig) return cachedFirebaseConfig;
+
+  const candidatePaths = [
+    path.resolve(process.cwd(), 'firebase-applet-config.json'),
+    path.resolve(process.cwd(), '..', 'firebase-applet-config.json'),
+  ];
+
+  for (const cfgPath of candidatePaths) {
+    try {
+      if (fs.existsSync(cfgPath)) {
+        const parsed = JSON.parse(fs.readFileSync(cfgPath, 'utf-8')) as FirebasePublicConfig;
+        if (parsed && parsed.projectId && parsed.apiKey) {
+          cachedFirebaseConfig = parsed;
+          return cachedFirebaseConfig;
+        }
+      }
+    } catch {
+      // Try next path or env vars
+    }
+  }
+
+  cachedFirebaseConfig = {
+    projectId: process.env.FIREBASE_PROJECT_ID || '',
+    apiKey: process.env.FIREBASE_API_KEY || '',
+    firestoreDatabaseId: process.env.FIREBASE_DATABASE_ID || '(default)',
+  };
+  return cachedFirebaseConfig;
+}
 
 export const SITE_URL = 'https://www.iamquickagent.com';
 export const SITE_NAME = 'iamquickagent.com';
@@ -206,6 +244,10 @@ async function fetchFirestoreCollectionRest<T>(
   collectionName: string,
   options: { orderByField?: string; limit?: number; timeoutMs?: number } = {}
 ): Promise<Array<T & { id: string }>> {
+  const firebaseConfig = getServerFirebaseConfig();
+  if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
+    throw new Error('Firebase public configuration is unavailable on server.');
+  }
   const projectId = firebaseConfig.projectId;
   const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
   const runQueryEndpoint = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(

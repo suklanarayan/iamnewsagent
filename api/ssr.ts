@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import templateData from './_ssr-template.json';
+import { SSR_TEMPLATE_HTML } from './_ssrTemplate';
 import { getLegalPageByPath } from '../src/data/legalPages';
 import {
   SITE_URL,
@@ -16,16 +16,14 @@ import {
 
 function getTemplateHtml(): string {
   // 1. Prefer bundled Vite-built HTML template captured during build by scripts/prepare-ssr.mjs
-  if (templateData && typeof templateData.html === 'string' && templateData.html.includes('<div id="root">')) {
-    return templateData.html;
+  if (typeof SSR_TEMPLATE_HTML === 'string' && SSR_TEMPLATE_HTML.includes('<div id="root">')) {
+    return SSR_TEMPLATE_HTML;
   }
 
-  // 2. Fallback to reading from filesystem if available
+  // 2. Fallback to reading from filesystem if available (ESM-safe, no __dirname)
   const possiblePaths = [
     path.join(process.cwd(), 'dist', 'index.html'),
     path.join(process.cwd(), 'index.html'),
-    path.resolve(__dirname, '..', 'dist', 'index.html'),
-    path.resolve(__dirname, '..', 'index.html'),
   ];
 
   for (const p of possiblePaths) {
@@ -41,7 +39,15 @@ export default async function handler(req: any, res: any) {
   try {
     const rawUrl = req.url || '/';
     const parsedUrl = new URL(rawUrl, SITE_URL);
-    const pathname = parsedUrl.pathname;
+    const routeParam =
+      (typeof req.query?.__route === 'string'
+        ? req.query.__route
+        : parsedUrl.searchParams.get('__route')) || '';
+    const pathname =
+      routeParam ||
+      (parsedUrl.pathname === '/api/ssr' || parsedUrl.pathname === '/api/ssr/'
+        ? '/'
+        : parsedUrl.pathname);
 
     // 0. Permanent 301 Redirect for legacy /article/:slug URLs -> canonical /news/:slug
     const legacyArticleMatch = pathname.match(/^\/article\/([a-zA-Z0-9-_]+)\/?$/);
