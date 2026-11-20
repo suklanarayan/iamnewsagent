@@ -23,6 +23,7 @@ import { ArticleView } from './views/ArticleView';
 import { AuthorView } from './views/AuthorView';
 import { LegalPageView } from './views/LegalPageView';
 import { injectHomeSchema, injectCategorySchema } from './utils/seo';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 // Lazy-load non-critical / admin views to eliminate ~240 KiB of unused JS from initial mobile paint
 const CmsView = lazy(() => import('./views/CmsView').then((m) => ({ default: m.CmsView })));
@@ -493,6 +494,9 @@ export default function App() {
           onNavigateLegal={handleNavigateLegal}
         />
       )}
+
+      {/* Vercel Speed Insights */}
+      <SpeedInsights />
     </div>
   );
 }
