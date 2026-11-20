@@ -2024,7 +2024,7 @@ export const CmsView: React.FC<CmsViewProps> = ({
 
                 <div className="p-3 rounded-lg bg-white text-slate-900 text-xs space-y-1 font-sans">
                   <div className="text-[11px] text-slate-600 truncate">
-                    https://iamquickagent.com &gt; article &gt; {slug || 'sample-slug'}
+                    https://www.iamquickagent.com &gt; news &gt; {slug || 'sample-slug'}
                   </div>
                   <div className="text-blue-800 font-medium text-sm hover:underline line-clamp-1">
                     {headline || 'Your Headline Will Appear Here | iamquickagent.com'}

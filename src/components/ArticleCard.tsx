@@ -107,6 +107,8 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
                   <img
                     src={author.avatar}
                     alt={author.name}
+                    width={36}
+                    height={36}
                     className="w-9 h-9 rounded-full object-cover border border-amber-500/30 group-hover:border-amber-400 transition-colors"
                   />
                 ) : (
@@ -214,6 +216,8 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
               <img
                 src={author.avatar}
                 alt={author.name}
+                width={20}
+                height={20}
                 className="w-5 h-5 rounded-full object-cover"
               />
             ) : null}

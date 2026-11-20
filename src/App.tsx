@@ -1,62 +1,127 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import type { Article, Author, LiveStory } from './types';
 import {
   getArticles,
   getAuthors,
   getLiveStories,
+  getLocalArticles,
+  getLocalAuthors,
+  getLocalLiveStories,
   getArticleBySlug,
   incrementArticleViews,
   getStorageStatus,
   subscribeToLiveStories,
   subscribeToArticles,
 } from './services/articleRepository';
+import { getLegalPageByPath, type LegalPageData } from './data/legalPages';
 import { Header } from './components/Header';
 import { BreakingTicker } from './components/BreakingTicker';
 import { BannerAd } from './components/BannerAd';
-import { SearchModal } from './components/SearchModal';
 import { PublicFooter } from './components/PublicFooter';
 import { HomeView } from './views/HomeView';
 import { ArticleView } from './views/ArticleView';
 import { AuthorView } from './views/AuthorView';
-import { CmsView } from './views/CmsView';
+import { LegalPageView } from './views/LegalPageView';
 import { injectHomeSchema, injectCategorySchema } from './utils/seo';
 
-export default function App() {
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [authors, setAuthors] = useState<Author[]>([]);
-  const [liveStories, setLiveStories] = useState<LiveStory[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+// Lazy-load non-critical / admin views to eliminate ~240 KiB of unused JS from initial mobile paint
+const CmsView = lazy(() => import('./views/CmsView').then((m) => ({ default: m.CmsView })));
+const SearchModal = lazy(() =>
+  import('./components/SearchModal').then((m) => ({ default: m.SearchModal }))
+);
 
-  // Check if server injected pre-rendered article for instant zero-LCP hydration
+function getInitialHydratedArticles(): Article[] {
+  const ssrArticle: Article | null =
+    typeof window !== 'undefined' && (window as any).__INITIAL_ARTICLE__
+      ? (window as any).__INITIAL_ARTICLE__
+      : null;
+  const ssrList: Article[] =
+    typeof window !== 'undefined' && Array.isArray((window as any).__INITIAL_ARTICLES__)
+      ? (window as any).__INITIAL_ARTICLES__
+      : [];
+
+  const localList = getLocalArticles();
+  const base = ssrList.length > 0 ? ssrList : localList;
+
+  if (ssrArticle && !base.some((a) => a.id === ssrArticle.id || a.slug === ssrArticle.slug)) {
+    return [ssrArticle, ...base];
+  }
+  return base;
+}
+
+function getInitialHydratedAuthors(): Author[] {
+  if (typeof window !== 'undefined' && Array.isArray((window as any).__INITIAL_AUTHORS__)) {
+    const ssrAuthors = (window as any).__INITIAL_AUTHORS__ as Author[];
+    if (ssrAuthors.length > 0) return ssrAuthors;
+  }
+  return getLocalAuthors();
+}
+
+export default function App() {
+  // Synchronous instant hydration from SSR / local cache (ZERO blocking loading spinner, eliminates 24.7s LCP & 0.891 CLS!)
+  const [articles, setArticles] = useState<Article[]>(getInitialHydratedArticles);
+  const [authors, setAuthors] = useState<Author[]>(getInitialHydratedAuthors);
+  const [liveStories, setLiveStories] = useState<LiveStory[]>(() => getLocalLiveStories());
+
   const initialArticle: Article | null =
     typeof window !== 'undefined' && (window as any).__INITIAL_ARTICLE__
       ? (window as any).__INITIAL_ARTICLE__
       : null;
+
+  const initialLegalPage: LegalPageData | null =
+    typeof window !== 'undefined' ? getLegalPageByPath(window.location.pathname) : null;
 
   const isInitialArticleRoute =
     typeof window !== 'undefined' &&
     /^\/(?:news|article)\/[a-zA-Z0-9-_]+/.test(window.location.pathname);
 
   // Navigation State
-  const [currentView, setCurrentView] = useState<'home' | 'article' | 'author' | 'cms'>(() => {
+  const [currentView, setCurrentView] = useState<'home' | 'article' | 'author' | 'legal' | 'cms'>(() => {
     if (typeof window !== 'undefined') {
       if (window.location.pathname.startsWith('/cms') || window.location.hash === '#cms') return 'cms';
+      if (initialLegalPage) return 'legal';
       if (initialArticle || isInitialArticleRoute) return 'article';
       if (window.location.pathname.startsWith('/author/')) return 'author';
     }
     return 'home';
   });
 
-  const [selectedArticle, setSelectedArticle] = useState<Article | null>(initialArticle);
-  const [selectedAuthorId, setSelectedAuthorId] = useState<string | null>(null);
-  const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [selectedArticle, setSelectedArticle] = useState<Article | null>(() => {
+    if (initialArticle) return initialArticle;
+    if (typeof window !== 'undefined') {
+      const m = window.location.pathname.match(/^\/(?:news|article)\/([a-zA-Z0-9-_]+)/);
+      if (m) {
+        const slug = m[1];
+        return getInitialHydratedArticles().find((a) => a.slug === slug || a.id === slug) || null;
+      }
+    }
+    return null;
+  });
+
+  const [selectedAuthorId, setSelectedAuthorId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const m = window.location.pathname.match(/^\/author\/([a-zA-Z0-9-_]+)/);
+      if (m) return m[1];
+    }
+    return null;
+  });
+
+  const [activeLegalPage, setActiveLegalPage] = useState<LegalPageData | null>(initialLegalPage);
+
+  const [activeCategory, setActiveCategory] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const cat = params.get('category');
+      if (cat && cat.trim()) return cat.trim();
+    }
+    return 'all';
+  });
+
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Storage connection status
   const [storageStatus, setStorageStatus] = useState(getStorageStatus());
 
-  // Load articles, authors & live stories
+  // Background cloud data sync (non-blocking)
   const loadData = useCallback(async () => {
     try {
       const [fetchedArticles, fetchedAuthors, fetchedStories] = await Promise.all([
@@ -64,18 +129,18 @@ export default function App() {
         getAuthors(),
         getLiveStories(),
       ]);
-      if (initialArticle && !fetchedArticles.some((a) => a.id === initialArticle.id)) {
-        setArticles([initialArticle, ...fetchedArticles]);
-      } else {
-        setArticles(fetchedArticles);
+      if (fetchedArticles.length > 0) {
+        if (initialArticle && !fetchedArticles.some((a) => a.id === initialArticle.id)) {
+          setArticles([initialArticle, ...fetchedArticles]);
+        } else {
+          setArticles(fetchedArticles);
+        }
       }
-      setAuthors(fetchedAuthors);
-      setLiveStories(fetchedStories);
+      if (fetchedAuthors.length > 0) setAuthors(fetchedAuthors);
+      if (fetchedStories.length > 0) setLiveStories(fetchedStories);
       setStorageStatus(getStorageStatus());
     } catch (e) {
-      console.error('Error loading news data:', e);
-    } finally {
-      setIsLoading(false);
+      console.error('Error syncing news data:', e);
     }
   }, [initialArticle]);
 
@@ -89,15 +154,13 @@ export default function App() {
       loadData();
     };
 
-    // 1. Instant cross-device Firestore real-time snapshot subscribers
     const unsubStories = subscribeToLiveStories((updatedStories) => {
-      setLiveStories(updatedStories);
+      if (updatedStories.length > 0) setLiveStories(updatedStories);
     });
     const unsubArticles = subscribeToArticles((updatedArticles) => {
-      setArticles(updatedArticles);
+      if (updatedArticles.length > 0) setArticles(updatedArticles);
     });
 
-    // 2. Local window events and mobile wake-up listeners
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         loadData();
@@ -111,10 +174,9 @@ export default function App() {
     window.addEventListener('focus', handleNewsChange);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // 3. Periodic cloud sync fallback (every 25 seconds) to ensure mobile never falls behind
     const intervalId = setInterval(() => {
       loadData();
-    }, 25000);
+    }, 30000);
 
     return () => {
       if (unsubStories) unsubStories();
@@ -129,7 +191,7 @@ export default function App() {
     };
   }, [loadData]);
 
-  // Handle URL deep linking on initial load and popstate
+  // Handle URL deep linking on initial load and browser back/forward (popstate)
   useEffect(() => {
     const handleLocationChange = async () => {
       const pathname = window.location.pathname;
@@ -140,11 +202,12 @@ export default function App() {
         return;
       }
 
-      // Handle direct browser hits for Sitemaps, Robots, RSS, and LLM text files
+      // Handle direct hits for XML/text machine files if ever caught by SPA router
       if (
         pathname === '/sitemap.xml' ||
         pathname === '/news-sitemap.xml' ||
         pathname === '/robots.txt' ||
+        pathname === '/ai.txt' ||
         pathname === '/rss.xml' ||
         pathname === '/feed.xml' ||
         pathname === '/llms.txt' ||
@@ -156,9 +219,13 @@ export default function App() {
           document.open();
           const escaped = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
           if (pathname.endsWith('.xml')) {
-            document.write(`<pre style="word-wrap: break-word; white-space: pre-wrap; font-family: monospace; font-size: 13px; line-height: 1.5; padding: 16px; background: #0f172a; color: #38bdf8;">${escaped}</pre>`);
+            document.write(
+              `<pre style="word-wrap: break-word; white-space: pre-wrap; font-family: monospace; font-size: 13px; line-height: 1.5; padding: 16px; background: #0f172a; color: #38bdf8;">${escaped}</pre>`
+            );
           } else {
-            document.write(`<pre style="word-wrap: break-word; white-space: pre-wrap; font-family: monospace; font-size: 13px; line-height: 1.5; padding: 16px; background: #ffffff; color: #1e293b;">${escaped}</pre>`);
+            document.write(
+              `<pre style="word-wrap: break-word; white-space: pre-wrap; font-family: monospace; font-size: 13px; line-height: 1.5; padding: 16px; background: #ffffff; color: #1e293b;">${escaped}</pre>`
+            );
           }
           document.close();
           return;
@@ -168,9 +235,22 @@ export default function App() {
         }
       }
 
-      const articleMatch = pathname.match(/\/(?:news|article)\/([a-zA-Z0-9-_]+)/);
+      // Legal & Compliance pages
+      const legal = getLegalPageByPath(pathname);
+      if (legal) {
+        setActiveLegalPage(legal);
+        setCurrentView('legal');
+        return;
+      }
+
+      // Article routes: normalize legacy /article/:slug -> canonical /news/:slug in URL bar
+      const articleMatch = pathname.match(/^\/(news|article)\/([a-zA-Z0-9-_]+)/);
       if (articleMatch) {
-        const slug = articleMatch[1];
+        const prefix = articleMatch[1];
+        const slug = articleMatch[2];
+        if (prefix === 'article') {
+          window.history.replaceState({}, '', `/news/${slug}`);
+        }
         if (initialArticle && (initialArticle.slug === slug || initialArticle.id === slug)) {
           setSelectedArticle(initialArticle);
           setCurrentView('article');
@@ -186,28 +266,32 @@ export default function App() {
         }
       }
 
-      const authorMatch = pathname.match(/\/author\/([a-zA-Z0-9-_]+)/);
+      const authorMatch = pathname.match(/^\/author\/([a-zA-Z0-9-_]+)/);
       if (authorMatch) {
         setSelectedAuthorId(authorMatch[1]);
         setCurrentView('author');
         return;
       }
 
-      // Default home
+      // Homepage or Category query param
+      const params = new URLSearchParams(window.location.search);
+      const cat = params.get('category');
+      setActiveCategory(cat && cat.trim() ? cat.trim() : 'all');
       setCurrentView('home');
-      injectHomeSchema();
     };
 
     handleLocationChange();
     window.addEventListener('popstate', handleLocationChange);
     return () => window.removeEventListener('popstate', handleLocationChange);
-  }, []);
+  }, [initialArticle]);
 
-  // Set home / category SEO schema and OpenGraph based on active state
+  // Keep home / category SEO schema, canonical, title & description synced with active state
   useEffect(() => {
     if (currentView === 'home') {
       if (activeCategory && activeCategory !== 'all') {
-        const count = articles.filter((a) => a.category === activeCategory).length;
+        const count = articles.filter(
+          (a) => a.category?.toLowerCase() === activeCategory.toLowerCase()
+        ).length;
         injectCategorySchema(activeCategory, count);
       } else {
         injectHomeSchema();
@@ -215,7 +299,7 @@ export default function App() {
     }
   }, [currentView, activeCategory, articles]);
 
-  // Navigate to Article (canonical /news/:slug format)
+  // Navigate to News Story (canonical /news/:slug format)
   const handleSelectArticle = (article: Article) => {
     setSelectedArticle(article);
     setCurrentView('article');
@@ -232,13 +316,23 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Navigate to Category
+  // Navigate to Legal / Compliance Page
+  const handleNavigateLegal = (path: string) => {
+    const legal = getLegalPageByPath(path);
+    if (!legal) return;
+    setActiveLegalPage(legal);
+    setCurrentView('legal');
+    window.history.pushState({}, '', legal.path);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Navigate to Category (keeps canonical /?category=... URL in sync)
   const handleSelectCategory = (cat: string) => {
     setActiveCategory(cat);
     setCurrentView('home');
-    window.history.pushState({}, '', '/');
+    const targetUrl = cat && cat !== 'all' ? `/?category=${encodeURIComponent(cat)}` : '/';
+    window.history.pushState({}, '', targetUrl);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    loadData();
   };
 
   // Navigate Home
@@ -246,10 +340,10 @@ export default function App() {
     setActiveCategory('all');
     setSelectedArticle(null);
     setSelectedAuthorId(null);
+    setActiveLegalPage(null);
     setCurrentView('home');
     window.history.pushState({}, '', '/');
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    loadData();
   };
 
   // Open CMS
@@ -259,26 +353,19 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Trigger search with query
   const handleTriggerSearch = (q: string) => {
     setSearchQuery(q);
     setIsSearchOpen(true);
   };
 
-  // Breaking articles
-  const breakingArticles = articles.filter((a) => a.isBreaking && a.status === 'published');
-
-  // Active Author object
+  const publishedArticles = articles.filter((a) => (a.status || 'published') === 'published');
+  const breakingArticles = publishedArticles.filter((a) => a.isBreaking);
   const activeAuthor = authors.find((a) => a.id === selectedAuthorId) || null;
-
-  // Selected Article's Author object
   const selectedArticleAuthor = selectedArticle
     ? authors.find((a) => a.id === selectedArticle.authorId) || null
     : null;
-
-  // Related articles
   const relatedArticles = selectedArticle
-    ? articles.filter(
+    ? publishedArticles.filter(
         (a) => a.id !== selectedArticle.id && a.category === selectedArticle.category
       )
     : [];
@@ -306,89 +393,96 @@ export default function App() {
         isCloudStorage={storageStatus.isCloud}
       />
 
-      {/* 3. MAIN CONTENT CONTAINER */}
-      <div className="flex-1">
-        {isLoading ? (
-          <div className="min-h-[50vh] flex flex-col items-center justify-center space-y-3">
-            <div className="w-8 h-8 rounded-full border-2 border-red-600 border-t-transparent animate-spin" />
-            <span className="text-xs text-slate-500 font-medium">
-              Initializing Iamnewsagent intelligence feed...
-            </span>
-          </div>
-        ) : (
-          <>
-            {currentView === 'home' && (
-              <HomeView
-                articles={articles.filter((a) => a.status === 'published')}
-                authors={authors}
-                liveStories={liveStories}
-                activeCategory={activeCategory}
-                onSelectCategory={setActiveCategory}
-                onSelectArticle={handleSelectArticle}
-                onSelectAuthor={handleSelectAuthor}
-                onOpenSearch={() => {
-                  setSearchQuery('');
-                  setIsSearchOpen(true);
-                }}
-                onSearchQuery={handleTriggerSearch}
-              />
-            )}
-
-            {currentView === 'article' && selectedArticle && (
-              <ArticleView
-                article={selectedArticle}
-                author={selectedArticleAuthor}
-                relatedArticles={relatedArticles}
-                allArticles={articles.filter((a) => a.status === 'published')}
-                onBackToFeed={handleNavigateHome}
-                onSelectArticle={handleSelectArticle}
-                onSelectAuthor={handleSelectAuthor}
-                onSelectCategory={handleSelectCategory}
-              />
-            )}
-
-            {currentView === 'author' && activeAuthor && (
-              <AuthorView
-                author={activeAuthor}
-                articles={articles.filter((a) => a.status === 'published')}
-                onBackToFeed={handleNavigateHome}
-                onSelectArticle={handleSelectArticle}
-              />
-            )}
-
-            {currentView === 'cms' && (
-              <CmsView
-                articles={articles}
-                authors={authors}
-                liveStories={liveStories}
-                onRefreshArticles={loadData}
-                onRefreshLiveStories={loadData}
-                onCloseCms={handleNavigateHome}
-                onPreviewArticle={(art) => {
-                  setSelectedArticle(art);
-                  setCurrentView('article');
-                }}
-              />
-            )}
-          </>
+      {/* 3. MAIN CONTENT LANDMARK */}
+      <main id="main-content" className="flex-1">
+        {currentView === 'home' && (
+          <HomeView
+            articles={publishedArticles}
+            authors={authors}
+            liveStories={liveStories}
+            activeCategory={activeCategory}
+            onSelectCategory={handleSelectCategory}
+            onSelectArticle={handleSelectArticle}
+            onSelectAuthor={handleSelectAuthor}
+            onOpenSearch={() => {
+              setSearchQuery('');
+              setIsSearchOpen(true);
+            }}
+            onSearchQuery={handleTriggerSearch}
+          />
         )}
-      </div>
+
+        {currentView === 'article' && selectedArticle && (
+          <ArticleView
+            article={selectedArticle}
+            author={selectedArticleAuthor}
+            relatedArticles={relatedArticles}
+            allArticles={publishedArticles}
+            onBackToFeed={handleNavigateHome}
+            onSelectArticle={handleSelectArticle}
+            onSelectAuthor={handleSelectAuthor}
+            onSelectCategory={handleSelectCategory}
+          />
+        )}
+
+        {currentView === 'author' && activeAuthor && (
+          <AuthorView
+            author={activeAuthor}
+            articles={publishedArticles}
+            onBackToFeed={handleNavigateHome}
+            onSelectArticle={handleSelectArticle}
+          />
+        )}
+
+        {currentView === 'legal' && activeLegalPage && (
+          <LegalPageView
+            page={activeLegalPage}
+            onBackToFeed={handleNavigateHome}
+            onNavigateLegal={handleNavigateLegal}
+          />
+        )}
+
+        {currentView === 'cms' && (
+          <Suspense
+            fallback={
+              <div className="min-h-[40vh] flex items-center justify-center text-sm text-slate-600">
+                Loading Editorial CMS Desk...
+              </div>
+            }
+          >
+            <CmsView
+              articles={articles}
+              authors={authors}
+              liveStories={liveStories}
+              onRefreshArticles={loadData}
+              onRefreshLiveStories={loadData}
+              onCloseCms={handleNavigateHome}
+              onPreviewArticle={(art) => {
+                setSelectedArticle(art);
+                setCurrentView('article');
+              }}
+            />
+          </Suspense>
+        )}
+      </main>
 
       {/* 4. REUSABLE STICKY BOTTOM ANCHOR BANNER AD */}
       {currentView !== 'cms' && <BannerAd format="sticky-bottom" />}
 
-      {/* 5. FAST SEARCH MODAL */}
+      {/* 5. LAZY-LOADED FAST SEARCH MODAL */}
       {isSearchOpen && (
-        <SearchModal
-          isOpen={isSearchOpen}
-          onClose={() => {
-            setIsSearchOpen(false);
-            setSearchQuery('');
-          }}
-          initialQuery={searchQuery}
-          articles={articles.filter((a) => a.status === 'published')}
-          onSelectArticle={handleSelectArticle}
-        />
+        <Suspense fallback={null}>
+          <SearchModal
+            isOpen={isSearchOpen}
+            onClose={() => {
+              setIsSearchOpen(false);
+              setSearchQuery('');
+            }}
+            initialQuery={searchQuery}
+            articles={publishedArticles}
+            onSelectArticle={handleSelectArticle}
+          />
+        </Suspense>
       )}
 
       {/* 6. PUBLIC FOOTER */}
@@ -396,6 +490,7 @@ export default function App() {
         <PublicFooter
           onOpenCms={handleOpenCms}
           onSelectCategory={handleSelectCategory}
+          onNavigateLegal={handleNavigateLegal}
         />
       )}
     </div>

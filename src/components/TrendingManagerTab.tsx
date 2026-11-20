@@ -149,7 +149,7 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
     setFormCategory(item.category || 'General');
     setFormSearchVolume(item.searchVolume || '');
     setFormSlug(item.slug || '');
-    setFormDestinationUrl(item.destinationUrl || (item.slug ? `/article/${item.slug}` : ''));
+    setFormDestinationUrl(item.destinationUrl || (item.slug ? `/news/${item.slug}` : ''));
   };
 
   const saveEdit = (e: React.FormEvent) => {
@@ -392,7 +392,7 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
                     type="text"
                     value={formDestinationUrl}
                     onChange={(e) => setFormDestinationUrl(e.target.value)}
-                    placeholder="e.g. https://... or /article/your-slug or /category/world"
+                    placeholder="e.g. https://... or /news/your-slug or /?category=World"
                     className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white font-mono text-xs focus:border-red-400 focus:outline-none"
                   />
                   <span className="text-[10px] text-slate-400 mt-1 block">
@@ -516,7 +516,7 @@ export const TrendingManagerTab: React.FC<TrendingManagerTabProps> = ({
                     type="text"
                     value={formDestinationUrl}
                     onChange={(e) => setFormDestinationUrl(e.target.value)}
-                    placeholder="e.g. https://... or /article/your-slug or /category/world"
+                    placeholder="e.g. https://... or /news/your-slug or /?category=World"
                     className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white font-mono text-xs focus:border-amber-400 focus:outline-none"
                   />
                   <span className="text-[10px] text-slate-400 mt-1 block">

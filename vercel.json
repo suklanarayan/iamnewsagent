@@ -1,5 +1,14 @@
 {
   "version": 2,
+  "buildCommand": "npm run build && rm -f dist/index.html",
+  "outputDirectory": "dist",
+  "redirects": [
+    {
+      "source": "/article/:slug",
+      "destination": "/news/:slug",
+      "permanent": true
+    }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",
@@ -11,14 +20,14 @@
       "source": "/sitemap.xml",
       "headers": [
         { "key": "Content-Type", "value": "application/xml; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400" }
+        { "key": "Cache-Control", "value": "public, max-age=300, s-maxage=900, stale-while-revalidate=86400" }
       ]
     },
     {
       "source": "/news-sitemap.xml",
       "headers": [
         { "key": "Content-Type", "value": "application/xml; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=900, s-maxage=1800, stale-while-revalidate=86400" }
+        { "key": "Cache-Control", "value": "public, max-age=300, s-maxage=900, stale-while-revalidate=86400" }
       ]
     },
     {
@@ -29,69 +38,51 @@
       ]
     },
     {
+      "source": "/ai.txt",
+      "headers": [
+        { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=86400" }
+      ]
+    },
+    {
       "source": "/(rss\\.xml|feed\\.xml)",
       "headers": [
         { "key": "Content-Type", "value": "application/rss+xml; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400" }
+        { "key": "Cache-Control", "value": "public, max-age=600, s-maxage=1800, stale-while-revalidate=86400" }
       ]
     },
     {
       "source": "/(llms\\.txt|llms-full\\.txt)",
       "headers": [
         { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=3600" }
+        { "key": "Cache-Control", "value": "public, max-age=600, s-maxage=1800" }
       ]
     },
     {
-      "source": "/(?:news|article)/.*",
+      "source": "/news/.*",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=60, s-maxage=300, stale-while-revalidate=86400" }
       ]
     }
   ],
   "rewrites": [
+    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
+    { "source": "/news-sitemap.xml", "destination": "/api/news-sitemap" },
+    { "source": "/robots.txt", "destination": "/api/robots" },
+    { "source": "/ai.txt", "destination": "/api/ai" },
+    { "source": "/rss.xml", "destination": "/api/rss" },
+    { "source": "/feed.xml", "destination": "/api/rss" },
+    { "source": "/llms.txt", "destination": "/api/llms" },
+    { "source": "/llms-full.txt", "destination": "/api/llms" },
+    { "source": "/news/:slug", "destination": "/api/ssr" },
+    { "source": "/author/:id", "destination": "/api/ssr" },
+    { "source": "/privacy-policy", "destination": "/api/ssr" },
+    { "source": "/terms-of-service", "destination": "/api/ssr" },
+    { "source": "/cookie-policy", "destination": "/api/ssr" },
+    { "source": "/editorial-standards", "destination": "/api/ssr" },
+    { "source": "/", "destination": "/api/ssr" },
     {
-      "source": "/sitemap.xml",
-      "destination": "/api/sitemap"
-    },
-    {
-      "source": "/news-sitemap.xml",
-      "destination": "/api/news-sitemap"
-    },
-    {
-      "source": "/robots.txt",
-      "destination": "/api/robots"
-    },
-    {
-      "source": "/rss.xml",
-      "destination": "/api/rss"
-    },
-    {
-      "source": "/feed.xml",
-      "destination": "/api/rss"
-    },
-    {
-      "source": "/llms.txt",
-      "destination": "/api/llms"
-    },
-    {
-      "source": "/llms-full.txt",
-      "destination": "/api/llms"
-    },
-    {
-      "source": "/news/:slug",
-      "destination": "/api/ssr"
-    },
-    {
-      "source": "/article/:slug",
-      "destination": "/api/ssr"
-    },
-    {
-      "source": "/",
-      "destination": "/api/ssr"
-    },
-    {
-      "source": "/((?!api/|assets/|robots\\.txt|sitemap\\.xml|news-sitemap\\.xml|rss\\.xml|feed\\.xml|llms\\.txt|llms-full\\.txt|manifest\\.webmanifest|.*\\.[a-zA-Z0-9]+$).*)",
+      "source": "/((?!api/|assets/|robots\\.txt|ai\\.txt|sitemap\\.xml|news-sitemap\\.xml|rss\\.xml|feed\\.xml|llms\\.txt|llms-full\\.txt|manifest\\.webmanifest|.*\\.[a-zA-Z0-9]+$).*)",
       "destination": "/api/ssr"
     }
   ]

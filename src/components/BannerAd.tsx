@@ -125,6 +125,9 @@ export const BannerAd = ({
               <img
                 src={activeAd.image}
                 alt={activeAd.title}
+                width={300}
+                height={112}
+                loading="lazy"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
               />

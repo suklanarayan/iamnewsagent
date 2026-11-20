@@ -520,6 +520,9 @@ export const SocialTvTrendingSection: React.FC<SocialTvTrendingSectionProps> = (
                   <img
                     src={selectedBrief.imageUrl}
                     alt={selectedBrief.title}
+                    width={600}
+                    height={176}
+                    loading="lazy"
                     className="w-full h-full object-cover"
                   />
                 </div>

@@ -129,9 +129,9 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onOpenSearch}
-              className="p-1.5 sm:p-2 text-slate-600 hover:text-red-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center text-slate-700 hover:text-red-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
               title="Search news (Cmd+K or /)"
-              aria-label="Search articles"
+              aria-label="Search news"
             >
               <Search className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
             </button>
@@ -166,9 +166,9 @@ export const Header: React.FC<HeaderProps> = ({
           UNIFIED RESPONSIVE CATEGORY NAVIGATION RIBBON (Same live bar across all devices)
           ========================================================================= */}
       <div className="max-w-7xl mx-auto px-2 sm:px-6">
-        <div className="flex items-center justify-between h-9 sm:h-11 overflow-hidden">
+        <div className="flex items-center justify-between h-11 overflow-hidden">
           <nav
-            className="flex items-center gap-1 sm:gap-2 lg:gap-3 overflow-x-auto no-scrollbar py-1 text-xs font-medium text-slate-700 w-full scroll-smooth"
+            className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 overflow-x-auto no-scrollbar py-1 text-xs font-medium text-slate-700 w-full scroll-smooth"
             aria-label="Category Navigation"
           >
             {CATEGORIES.map((cat) => {
@@ -178,10 +178,10 @@ export const Header: React.FC<HeaderProps> = ({
                   key={cat.value}
                   type="button"
                   onClick={() => onSelectCategory(cat.value)}
-                  className={`px-2 sm:px-2.5 py-1 sm:py-1.5 transition-colors whitespace-nowrap relative cursor-pointer shrink-0 ${
+                  className={`px-2.5 py-2 min-h-[36px] transition-colors whitespace-nowrap relative cursor-pointer shrink-0 ${
                     isActive
                       ? 'text-red-700 font-bold'
-                      : 'hover:text-slate-950 text-slate-600'
+                      : 'hover:text-slate-950 text-slate-700'
                   }`}
                 >
                   <span>{cat.label}</span>

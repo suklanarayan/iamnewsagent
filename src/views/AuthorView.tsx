@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   ArrowLeft,
   ShieldCheck,
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { Article, Author } from '../types';
 import { ArticleCard } from '../components/ArticleCard';
+import { injectAuthorSchema, removeArticleSchema } from '../utils/seo';
 
 interface AuthorViewProps {
   author: Author;
@@ -30,6 +31,13 @@ export const AuthorView: React.FC<AuthorViewProps> = ({
   const authorArticles = articles.filter((a) => a.authorId === author.id);
   const totalViews = authorArticles.reduce((sum, a) => sum + (a.views || 0), 0);
   const uniqueCategories = Array.from(new Set(authorArticles.map((a) => a.category)));
+
+  useEffect(() => {
+    injectAuthorSchema(author, authorArticles.length);
+    return () => {
+      removeArticleSchema();
+    };
+  }, [author, authorArticles.length]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
@@ -51,6 +59,8 @@ export const AuthorView: React.FC<AuthorViewProps> = ({
             <img
               src={author.avatar}
               alt={author.name}
+              width={112}
+              height={112}
               referrerPolicy="no-referrer"
               onError={(e) => {
                 e.currentTarget.src =

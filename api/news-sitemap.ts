@@ -1,13 +1,13 @@
 // Vercel Serverless Function: GET /news-sitemap.xml
 import { getAllServerArticles, generateNewsSitemapXml } from '../src/server/ssrEngine';
 
-export default async function handler(req: any, res: any) {
+export default async function handler(_req: any, res: any) {
   try {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Content-Type', 'application/xml; charset=utf-8');
     res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=900, stale-while-revalidate=86400');
 
-    const articles = await getAllServerArticles();
+    const articles = await getAllServerArticles(true);
     const xml = generateNewsSitemapXml(articles);
 
     res.status(200).send(xml);

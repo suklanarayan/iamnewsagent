@@ -55,10 +55,7 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
   const [isSpeakingFull, setIsSpeakingFull] = useState(false);
 
-  // Canonical news site URL structure
-  const currentUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/news/${article.slug}`
-    : `https://iamquickagent.com/news/${article.slug}`;
+  const currentUrl = `https://www.iamquickagent.com/news/${article.slug}`;
 
   // Track the active article ID to prevent rogue auto-scroll resets during background sync
   const activeArticleIdRef = useRef<string | null>(null);
@@ -227,7 +224,7 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
       </nav>
 
       {/* Main Semantic Article Grid */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
           {/* Main Article Body (8 cols) */}
           <article className="lg:col-span-8 space-y-6">
@@ -345,6 +342,8 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
                   <img
                     src={author.avatar}
                     alt={author.name}
+                    width={44}
+                    height={44}
                     className="w-11 h-11 rounded-full object-cover border border-slate-200"
                   />
                   <div>
@@ -657,6 +656,8 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
                   <img
                     src={author.avatar}
                     alt={author.name}
+                    width={56}
+                    height={56}
                     className="w-14 h-14 rounded-full object-cover border border-slate-200"
                   />
                   <div>
@@ -968,7 +969,7 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
             </div>
           )}
         </section>
-      </main>
+      </div>
     </div>
   );
 };

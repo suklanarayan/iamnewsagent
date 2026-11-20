@@ -109,6 +109,8 @@ export const OpinionsColumn: React.FC<OpinionsColumnProps> = ({
                 <img
                   src={op.authorAvatar}
                   alt={op.authorName}
+                  width={40}
+                  height={40}
                   className="w-10 h-10 rounded-full object-cover border border-slate-200 flex-shrink-0"
                   loading="lazy"
                   referrerPolicy="no-referrer"
@@ -149,6 +151,8 @@ export const OpinionsColumn: React.FC<OpinionsColumnProps> = ({
                     <img
                       src={op.authorAvatar}
                       alt={op.authorName}
+                      width={32}
+                      height={32}
                       className="w-8 h-8 rounded-full object-cover border border-slate-200"
                     />
                   )}

@@ -17,14 +17,22 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from './firebase-applet-config.json';
 import { SEED_ARTICLES, SEED_AUTHORS, SEED_LIVE_STORIES } from './src/data/seedData';
+import { getLegalPageByPath } from './src/data/legalPages';
 import {
   getAllServerArticles,
+  getAllServerAuthors,
   getServerArticleBySlug,
   getServerAuthorById,
   renderArticleSsrHtml,
+  renderAuthorSsrHtml,
   renderHomeSsrHtml,
+  renderLegalSsrHtml,
   generateSitemapXml,
   generateNewsSitemapXml,
+  generateRssXml,
+  generateLlmsTxt,
+  generateRobotsTxt,
+  generateAiTxt,
 } from './src/server/ssrEngine';
 
 const firebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -1288,70 +1296,29 @@ function escapeXml(unsafe: string): string {
 // ADVANCED SEO & CRAWLER / AI LLM ENGINE SUITE
 // ==========================================
 
-// 1. DYNAMIC ROBOTS.TXT
+// 1. DYNAMIC ROBOTS.TXT & AI.TXT
 app.get('/robots.txt', (_req, res) => {
-  const robots = `# robots.txt for iamquickagent.com / iamnewsagent
-User-agent: *
-Allow: /
-Disallow: /cms
-Disallow: /api/
-
-# AI Search Agents & LLM Web Crawlers
-# Explicitly permitted for AI Overviews, Answer Engine Optimization (AEO), and LLM knowledge citation
-User-agent: Google-Extended
-Allow: /
-
-User-agent: GoogleOther
-Allow: /
-
-User-agent: GoogleOther-Image
-Allow: /
-
-User-agent: GoogleOther-Video
-Allow: /
-
-User-agent: GPTBot
-Allow: /
-
-User-agent: ChatGPT-User
-Allow: /
-
-User-agent: ClaudeBot
-Allow: /
-
-User-agent: anthropic-ai
-Allow: /
-
-User-agent: PerplexityBot
-Allow: /
-
-User-agent: Applebot
-Allow: /
-
-User-agent: Applebot-Extended
-Allow: /
-
-User-agent: CCBot
-Allow: /
-
-User-agent: Bytespider
-Allow: /
-
-# Canonical Sitemaps
-Sitemap: https://iamquickagent.com/sitemap.xml
-Sitemap: https://iamquickagent.com/news-sitemap.xml
-`;
   res.header('Content-Type', 'text/plain; charset=utf-8');
-  res.send(robots);
+  res.header('Cache-Control', 'public, max-age=86400');
+  res.send(generateRobotsTxt());
 });
 
-// 2. STANDARD XML SITEMAP (DYNAMIC: INCLUDES ALL FIRESTORE ARTICLES + SEEDS)
+app.get('/ai.txt', (_req, res) => {
+  res.header('Content-Type', 'text/plain; charset=utf-8');
+  res.header('Cache-Control', 'public, max-age=86400');
+  res.send(generateAiTxt());
+});
+
+// 2. STANDARD XML SITEMAP (DYNAMIC: ALL FIRESTORE ARTICLES, AUTHORS, CATEGORIES, LEGAL PAGES)
 app.get('/sitemap.xml', async (_req, res) => {
   try {
-    const articles = await getAllServerArticles();
-    const xml = generateSitemapXml(articles);
+    const [articles, authors] = await Promise.all([
+      getAllServerArticles(true),
+      getAllServerAuthors(),
+    ]);
+    const xml = generateSitemapXml(articles, authors);
     res.header('Content-Type', 'application/xml; charset=utf-8');
-    res.header('Cache-Control', 'public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400');
+    res.header('Cache-Control', 'public, max-age=300, s-maxage=900, stale-while-revalidate=86400');
     res.send(xml);
   } catch (err: any) {
     console.error('Error generating /sitemap.xml:', err);
@@ -1359,13 +1326,13 @@ app.get('/sitemap.xml', async (_req, res) => {
   }
 });
 
-// 3. GOOGLE NEWS SITEMAP (NEWS SPECIFICATION WITH REAL-TIME FIRESTORE NEWS)
+// 3. GOOGLE NEWS SITEMAP (REAL-TIME FIRESTORE NEWS)
 app.get('/news-sitemap.xml', async (_req, res) => {
   try {
-    const articles = await getAllServerArticles();
+    const articles = await getAllServerArticles(true);
     const xml = generateNewsSitemapXml(articles);
     res.header('Content-Type', 'application/xml; charset=utf-8');
-    res.header('Cache-Control', 'public, max-age=900, s-maxage=1800, stale-while-revalidate=86400');
+    res.header('Cache-Control', 'public, max-age=300, s-maxage=900, stale-while-revalidate=86400');
     res.send(xml);
   } catch (err: any) {
     console.error('Error generating /news-sitemap.xml:', err);
@@ -1373,144 +1340,104 @@ app.get('/news-sitemap.xml', async (_req, res) => {
   }
 });
 
-// 4. RSS 2.0 & ATOM SYNDICATION FEEDS
-const handleRssFeed = (_req: express.Request, res: express.Response) => {
-  const baseUrl = 'https://iamquickagent.com';
-  const now = new Date().toUTCString();
-
-  let rss = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-  rss += `<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">\n`;
-  rss += `  <channel>\n`;
-  rss += `    <title>iamquickagent.com - Rapid Digital News &amp; Intelligence Agent</title>\n`;
-  rss += `    <link>${baseUrl}</link>\n`;
-  rss += `    <description>High-performance rapid digital news and intelligence publishing platform with key takeaway briefs, breaking dispatches, and deep analysis.</description>\n`;
-  rss += `    <language>en-US</language>\n`;
-  rss += `    <lastBuildDate>${now}</lastBuildDate>\n`;
-  rss += `    <atom:link href="${baseUrl}/rss.xml" rel="self" type="application/rss+xml"/>\n`;
-
-  for (const article of SEED_ARTICLES) {
-    const pubDate = new Date(article.publishedAt || Date.now()).toUTCString();
-    const articleUrl = `${baseUrl}/article/${article.slug}`;
-    const authorObj = SEED_AUTHORS.find(a => a.id === article.authorId);
-    const authorName = authorObj ? authorObj.name : 'iamquickagent Intelligence Desk';
-
-    rss += `    <item>\n`;
-    rss += `      <title>${escapeXml(article.headline)}</title>\n`;
-    rss += `      <link>${articleUrl}</link>\n`;
-    rss += `      <guid isPermaLink="true">${articleUrl}</guid>\n`;
-    rss += `      <pubDate>${pubDate}</pubDate>\n`;
-    rss += `      <dc:creator>${escapeXml(authorName)}</dc:creator>\n`;
-    rss += `      <category>${escapeXml(article.category)}</category>\n`;
-    rss += `      <description>${escapeXml(article.deck || article.keyTakeaways?.[0] || article.headline)}</description>\n`;
-    if (article.featuredImage) {
-      rss += `      <enclosure url="${escapeXml(article.featuredImage)}" type="image/jpeg" length="102400" />\n`;
-    }
-    rss += `    </item>\n`;
+// 4. RSS 2.0 & ATOM SYNDICATION FEEDS (LIVE FIRESTORE + CANONICAL /news/:slug)
+const handleRssFeed = async (_req: express.Request, res: express.Response) => {
+  try {
+    const [articles, authors] = await Promise.all([
+      getAllServerArticles(),
+      getAllServerAuthors(),
+    ]);
+    res.header('Content-Type', 'application/rss+xml; charset=utf-8');
+    res.header('Cache-Control', 'public, max-age=600, s-maxage=1800, stale-while-revalidate=86400');
+    res.send(generateRssXml(articles, authors));
+  } catch (err: any) {
+    console.error('Error generating RSS feed:', err);
+    res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel></channel></rss>');
   }
-
-  rss += `  </channel>\n`;
-  rss += `</rss>`;
-
-  res.header('Content-Type', 'application/rss+xml; charset=utf-8');
-  res.send(rss);
 };
 
 app.get('/rss.xml', handleRssFeed);
 app.get('/feed.xml', handleRssFeed);
 
 // 5. LLMS.TXT (AI OVERVIEW & LARGE LANGUAGE MODEL CITATION DIGEST)
-app.get(['/llms.txt', '/llms-full.txt'], (_req, res) => {
-  let doc = `# iamquickagent.com\n\n`;
-  doc += `> Rapid digital news and intelligence publishing platform delivering real-time geopolitical, tech, semiconductor, cyber, and macroeconomic briefings with structured executive key takeaways.\n\n`;
-  doc += `## Core Identity & Verification\n`;
-  doc += `- Website: https://iamquickagent.com\n`;
-  doc += `- Editorial Standards: Objective, non-partisan intelligence reporting verified across global wires.\n`;
-  doc += `- Publisher: iamquickagent.com Intelligence Group\n`;
-  doc += `- Google Site Verification: YFePTkFdMD9NtIIhg0fvDinPB8VPmTbH3Ahozp_tIqU\n\n`;
-  doc += `## Coverage Domains\n`;
-  doc += `- India & South Asia: Macroeconomics, digital public infrastructure, industrial policy.\n`;
-  doc += `- World & Geopolitics: Multilateral summits (BRICS, G20), security treaties, sovereign trade.\n`;
-  doc += `- Technology & AI: Advanced silicon fabrication, frontier AI models, quantum research.\n`;
-  doc += `- Markets & Commodities: Capital inflows, energy transition, equity benchmarks.\n\n`;
-  doc += `## Latest Published Dispatches\n\n`;
-
-  for (const article of SEED_ARTICLES) {
-    doc += `### [${article.headline}](https://iamquickagent.com/article/${article.slug})\n`;
-    doc += `- Category: ${article.category}\n`;
-    doc += `- Published: ${article.publishedAt}\n`;
-    if (article.deck) doc += `- Executive Summary: ${article.deck}\n`;
-    if (article.keyTakeaways && article.keyTakeaways.length > 0) {
-      doc += `- Key Intelligence Points:\n`;
-      article.keyTakeaways.forEach(pt => {
-        doc += `  * ${pt}\n`;
-      });
-    }
-    doc += `\n`;
+app.get(['/llms.txt', '/llms-full.txt'], async (req, res) => {
+  try {
+    const fullMode = req.path.includes('llms-full');
+    const articles = await getAllServerArticles();
+    res.header('Content-Type', 'text/plain; charset=utf-8');
+    res.header('Cache-Control', 'public, max-age=600, s-maxage=1800');
+    res.send(generateLlmsTxt(articles, fullMode));
+  } catch (err: any) {
+    console.error('Error generating llms.txt:', err);
+    res.status(500).send('# iamquickagent.com\n');
   }
-
-  res.header('Content-Type', 'text/plain; charset=utf-8');
-  res.send(doc);
 });
 
-// Helper: Escape XML/HTML special characters
-function escapeHtmlMeta(unsafe: string): string {
-  if (!unsafe) return '';
-  return unsafe
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+// 6. PERMANENT 301 REDIRECT FOR LEGACY /article/:slug -> /news/:slug
+app.get('/article/:slug', (req, res) => {
+  const slug = req.params.slug;
+  res.redirect(301, `/news/${encodeURIComponent(slug)}`);
+});
 
 // SEO & Full Server-Side Render (SSR) for Search Crawlers and Instant Mobile LCP
 async function renderSsrHtmlResponse(urlPath: string, templateHtml: string, categoryParam?: string): Promise<string> {
-  const baseUrl = 'https://iamquickagent.com';
+  // 1. Legal & Compliance Pages
+  const legalPage = getLegalPageByPath(urlPath);
+  if (legalPage) {
+    return renderLegalSsrHtml(legalPage, templateHtml);
+  }
 
-  // 1. Article/News Page: /news/:slug or /article/:slug
-  const articleMatch = urlPath.match(/^\/(?:news|article)\/([a-zA-Z0-9-_]+)/);
+  // 2. Dynamic News Page: /news/:slug
+  const articleMatch = urlPath.match(/^\/news\/([a-zA-Z0-9-_]+)\/?$/);
   if (articleMatch) {
     const slug = articleMatch[1];
-    const article = await getServerArticleBySlug(slug);
+    const [article, allArticles, authors] = await Promise.all([
+      getServerArticleBySlug(slug),
+      getAllServerArticles(),
+      getAllServerAuthors(),
+    ]);
     if (article) {
-      return renderArticleSsrHtml(article, templateHtml);
+      return renderArticleSsrHtml(article, templateHtml, authors, allArticles);
     }
   }
 
-  // 2. Author Profile Page: /author/:id
-  const authorMatch = urlPath.match(/^\/author\/([a-zA-Z0-9-_]+)/);
+  // 3. Author Profile Page: /author/:id
+  const authorMatch = urlPath.match(/^\/author\/([a-zA-Z0-9-_]+)\/?$/);
   if (authorMatch) {
     const authorId = authorMatch[1];
-    const author = getServerAuthorById(authorId);
+    const [author, allArticles] = await Promise.all([
+      getServerAuthorById(authorId),
+      getAllServerArticles(),
+    ]);
     if (author) {
-      let html = templateHtml;
-      const pageTitle = `${author.name} - Editorial Profile & Wire Dispatches | iamquickagent.com`;
-      const desc = escapeHtmlMeta(`${author.bio || author.role} at iamquickagent.com. Explore published investigative articles and intelligence briefings.`);
-      const canonicalUrl = `${baseUrl}/author/${encodeURIComponent(author.id)}`;
-
-      html = html.replace(/<title>.*?<\/title>/i, `<title>${escapeHtmlMeta(pageTitle)}</title>`);
-      html = html.replace(/<meta name="description" content=".*?" \/>/i, `<meta name="description" content="${desc}" />`);
-      html = html.replace(/<meta property="og:title" content=".*?" \/>/i, `<meta property="og:title" content="${escapeHtmlMeta(pageTitle)}" />`);
-      html = html.replace(/<meta property="og:description" content=".*?" \/>/i, `<meta property="og:description" content="${desc}" />`);
-      html = html.replace(/<meta property="og:url" content=".*?" \/>/i, `<meta property="og:url" content="${canonicalUrl}" />`);
-
-      const canonicalTag = `<link rel="canonical" href="${canonicalUrl}" />`;
-      if (html.includes('rel="canonical"')) {
-        html = html.replace(/<link[^>]*rel="canonical"[^>]*>/i, canonicalTag);
-      } else {
-        html = html.replace('</head>', `    ${canonicalTag}\n  </head>`);
-      }
-      return html;
+      return renderAuthorSsrHtml(author, allArticles, templateHtml);
     }
   }
 
-  // 3. Homepage or Category route: render top stories and headlines directly in HTML
-  const allArticles = await getAllServerArticles();
-  return renderHomeSsrHtml(allArticles, templateHtml, categoryParam);
+  // 4. Homepage or Category route
+  const [allArticles, authors] = await Promise.all([
+    getAllServerArticles(),
+    getAllServerAuthors(),
+  ]);
+  return renderHomeSsrHtml(allArticles, templateHtml, categoryParam, authors);
 }
 
 // Start server
 async function start() {
+  const ssrRoutes = [
+    '/',
+    '/news/:slug',
+    '/author/:id',
+    '/privacy-policy',
+    '/privacy',
+    '/terms-of-service',
+    '/terms',
+    '/cookie-policy',
+    '/cookies',
+    '/editorial-standards',
+    '/editorial',
+  ];
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -1518,7 +1445,7 @@ async function start() {
     });
 
     // Intercept HTML pages to inject dynamic SSR markup, high-priority preload, and instant hydration
-    app.get(['/', '/news/:slug', '/article/:slug', '/author/:id'], async (req, res, next) => {
+    app.get(ssrRoutes, async (req, res, next) => {
       try {
         const indexPath = path.resolve(process.cwd(), 'index.html');
         const rawHtml = fs.readFileSync(indexPath, 'utf-8');

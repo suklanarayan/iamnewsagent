@@ -252,11 +252,11 @@ export const SEED_LIVE_STORIES: LiveStory[] = [
 ];
 
 export const SEED_TRENDING_NOW: TrendingItem[] = [
-  { id: 1, rank: 1, title: '18th BRICS Summit New Delhi Declaration', category: 'World', searchVolume: '460K searches', slug: 'from-voice-to-impact-18th-brics-summit-india-global-role', destinationUrl: '/article/from-voice-to-impact-18th-brics-summit-india-global-role' },
-  { id: 2, rank: 2, title: 'Chandrayaan-4 mission updates', category: 'Science', searchVolume: '320K searches', slug: 'india-space-ambitions-reach-new-heights', destinationUrl: '/article/india-space-ambitions-reach-new-heights' },
-  { id: 3, rank: 3, title: 'India vs Bangladesh live score', category: 'Sports', searchVolume: '280K searches', slug: 'india-space-ambitions-reach-new-heights', destinationUrl: '/article/india-space-ambitions-reach-new-heights' },
-  { id: 4, rank: 4, title: 'iPhone 17 launch highlights', category: 'Technology', searchVolume: '240K searches', slug: 'ai-is-reshaping-how-we-work-are-we-ready', destinationUrl: '/article/ai-is-reshaping-how-we-work-are-we-ready' },
-  { id: 5, rank: 5, title: 'GST reform latest news', category: 'Business', searchVolume: '190K searches', slug: 'markets-rally-as-global-cues-turn-positive', destinationUrl: '/article/markets-rally-as-global-cues-turn-positive' }
+  { id: 1, rank: 1, title: '18th BRICS Summit New Delhi Declaration', category: 'World', searchVolume: '460K searches', slug: 'from-voice-to-impact-18th-brics-summit-india-global-role', destinationUrl: '/news/from-voice-to-impact-18th-brics-summit-india-global-role' },
+  { id: 2, rank: 2, title: 'Chandrayaan-4 mission updates', category: 'Science', searchVolume: '320K searches', slug: 'india-space-ambitions-reach-new-heights', destinationUrl: '/news/india-space-ambitions-reach-new-heights' },
+  { id: 3, rank: 3, title: 'India vs Bangladesh live score', category: 'Sports', searchVolume: '280K searches', slug: 'india-space-ambitions-reach-new-heights', destinationUrl: '/news/india-space-ambitions-reach-new-heights' },
+  { id: 4, rank: 4, title: 'iPhone 17 launch highlights', category: 'Technology', searchVolume: '240K searches', slug: 'ai-is-reshaping-how-we-work-are-we-ready', destinationUrl: '/news/ai-is-reshaping-how-we-work-are-we-ready' },
+  { id: 5, rank: 5, title: 'GST reform latest news', category: 'Business', searchVolume: '190K searches', slug: 'markets-rally-as-global-cues-turn-positive', destinationUrl: '/news/markets-rally-as-global-cues-turn-positive' }
 ];
 
 export const SEED_OPINIONS: OpinionPiece[] = [

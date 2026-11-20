@@ -10,12 +10,15 @@
     <meta name="author" content="iamquickagent.com Newsroom" />
     <meta name="generator" content="iamquickagent News Engine" />
 
+    <!-- Canonical URL (dynamically updated per page by SSR & client router) -->
+    <link rel="canonical" href="https://www.iamquickagent.com/" />
+
     <!-- OpenGraph Social Cards -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="iamquickagent.com" />
     <meta property="og:title" content="iamquickagent.com - Latest Breaking News, Live Updates &amp; Global Headlines" />
     <meta property="og:description" content="Live breaking news, real-time headlines, and in-depth reporting across India, World, Business, Tech, Markets, Sports, and Politics with executive takeaways." />
-    <meta property="og:url" content="https://iamquickagent.com/" />
+    <meta property="og:url" content="https://www.iamquickagent.com/" />
     <meta property="og:locale" content="en_US" />
     <meta property="og:image" content="https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&h=630&q=85" />
     <meta property="og:image:width" content="1200" />
@@ -43,23 +46,71 @@
     <meta name="format-detection" content="telephone=no" />
     <link rel="manifest" href="/manifest.webmanifest" />
 
-    <!-- Canonical, Feeds & LLMs (Canonical is injected dynamically per page) -->
+    <!-- Feeds, Sitemaps & AI Directives -->
     <link rel="alternate" type="application/rss+xml" title="iamquickagent RSS Feed" href="/rss.xml" />
     <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml" />
+    <link rel="alternate" type="text/plain" title="AI Crawling Policy" href="/ai.txt" />
     <link rel="author" href="/llms.txt" />
 
-    <!-- CDN Preconnects & High-Performance Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://images.unsplash.com">
-    <link rel="dns-prefetch" href="https://images.unsplash.com">
-    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Default Structured Data (replaced per-route by SSR engine) -->
+    <script type="application/ld+json" data-ssr-default="true">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "NewsMediaOrganization",
+            "@id": "https://www.iamquickagent.com/#organization",
+            "name": "iamquickagent.com",
+            "url": "https://www.iamquickagent.com",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&h=630&q=85",
+              "width": 1200,
+              "height": 630
+            },
+            "publishingPrinciples": "https://www.iamquickagent.com/editorial-standards"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.iamquickagent.com/#website",
+            "url": "https://www.iamquickagent.com/",
+            "name": "iamquickagent.com",
+            "publisher": { "@id": "https://www.iamquickagent.com/#organization" },
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://www.iamquickagent.com/?search={search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
+          }
+        ]
+      }
+    </script>
+
+    <!-- CDN Preconnects & Non-Render-Blocking Fonts (eliminates 780ms mobile render block) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://images.unsplash.com" />
+    <link rel="dns-prefetch" href="https://images.unsplash.com" />
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400&family=Playfair+Display:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400&family=Playfair+Display:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400&family=Playfair+Display:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
   </head>
   <body class="bg-white text-slate-900 antialiased selection:bg-red-500/20 selection:text-red-900">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
-
 </html>
-
-

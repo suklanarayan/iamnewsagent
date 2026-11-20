@@ -1,12 +1,43 @@
 import type { Article, Author } from '../types';
+import type { LegalPageData } from '../data/legalPages';
 
 const NEWS_SCHEMA_ID = 'iamquickagent-news-schema';
 const BREADCRUMB_SCHEMA_ID = 'iamquickagent-breadcrumb-schema';
 const WEBSITE_SCHEMA_ID = 'iamquickagent-website-schema';
 const KNOWLEDGE_GRAPH_SCHEMA_ID = 'iamquickagent-knowledge-graph-schema';
 const CATEGORY_SCHEMA_ID = 'iamquickagent-category-schema';
+const AUTHOR_SCHEMA_ID = 'iamquickagent-author-schema';
+const LEGAL_SCHEMA_ID = 'iamquickagent-legal-schema';
+const FAQ_SCHEMA_ID = 'iamquickagent-faq-schema';
 
-const DEFAULT_BASE_URL = 'https://iamquickagent.com';
+export const DEFAULT_BASE_URL = 'https://www.iamquickagent.com';
+const DEFAULT_OG_IMAGE =
+  'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&h=630&q=85';
+
+function toAbsoluteImage(img?: string): string {
+  if (!img) return DEFAULT_OG_IMAGE;
+  if (img.startsWith('https://') || img.startsWith('http://')) return img;
+  if (img.startsWith('/')) return `${DEFAULT_BASE_URL}${img}`;
+  return `${DEFAULT_BASE_URL}/${img}`;
+}
+
+function buildDescriptionFromContent(candidates: Array<string | undefined>, fallback: string): string {
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const cleaned = decodeHtmlEntities(raw)
+      .replace(/!\[.*?\]\(.*?\)/g, ' ')
+      .replace(/[#*`_>[\]()]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (cleaned.length >= 25) {
+      if (cleaned.length <= 160) return cleaned;
+      const sliced = cleaned.slice(0, 157);
+      const lastSpace = sliced.lastIndexOf(' ');
+      return (lastSpace > 110 ? sliced.slice(0, lastSpace) : sliced).replace(/[.,;:\s]+$/, '') + '...';
+    }
+  }
+  return fallback;
+}
 
 // Organization Knowledge Graph Schema (Unified Entity Reference)
 const KNOWLEDGE_GRAPH_ORGANIZATION = {
@@ -19,19 +50,20 @@ const KNOWLEDGE_GRAPH_ORGANIZATION = {
   'logo': {
     '@type': 'ImageObject',
     '@id': `${DEFAULT_BASE_URL}/#logo`,
-    'url': 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&h=120&q=85',
+    'url': DEFAULT_OG_IMAGE,
     'caption': 'iamquickagent.com Logo',
-    'width': 600,
-    'height': 120,
+    'width': 1200,
+    'height': 630,
   },
-  'image': 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&h=630&q=85',
+  'image': DEFAULT_OG_IMAGE,
   'sameAs': [
     'https://twitter.com/iamquickagent',
     'https://facebook.com/iamquickagent',
     'https://linkedin.com/company/iamquickagent',
     'https://youtube.com/@iamquickagent',
   ],
-  'description': 'Real-time digital breaking news and multimedia publishing network delivering live coverage across India, World, Business, Markets, Technology, Politics, Sports, and in-depth explainers.',
+  'description':
+    'Real-time digital breaking news and multimedia publishing network delivering live coverage across India, World, Business, Markets, Technology, Politics, Sports, and in-depth explainers.',
   'foundingDate': '2024-03-01',
   'founder': {
     '@type': 'Person',
@@ -50,10 +82,9 @@ const KNOWLEDGE_GRAPH_ORGANIZATION = {
     'Culture & Sports',
   ],
   'publishingPrinciples': `${DEFAULT_BASE_URL}/editorial-standards`,
-  'ethicsPolicy': `${DEFAULT_BASE_URL}/editorial-standards#ethics`,
-  'correctionsPolicy': `${DEFAULT_BASE_URL}/editorial-standards#corrections`,
-  'diversityPolicy': `${DEFAULT_BASE_URL}/editorial-standards#diversity`,
-  'masthead': `${DEFAULT_BASE_URL}/editorial-standards#team`,
+  'ethicsPolicy': `${DEFAULT_BASE_URL}/editorial-standards`,
+  'correctionsPolicy': `${DEFAULT_BASE_URL}/editorial-standards`,
+  'masthead': `${DEFAULT_BASE_URL}/editorial-standards`,
   'contactPoint': {
     '@type': 'ContactPoint',
     'contactType': 'Newsroom Editorial Desk',
@@ -62,19 +93,37 @@ const KNOWLEDGE_GRAPH_ORGANIZATION = {
   },
 };
 
-/**
- * Injects complete NewsArticle and Breadcrumb Schema for an article view,
- * optimized for Google News, Google Search, and AI Overviews (AEO).
- */
-export function injectArticleSchema(article: Article, author: Author | null, currentUrl: string): void {
-  removeArticleSchema();
+function clearSsrSchemaTag(): void {
+  const ssrTag = document.getElementById('iamquickagent-ssr-schema');
+  if (ssrTag) ssrTag.remove();
+  const defaultTags = document.querySelectorAll('script[data-ssr-default="true"]');
+  defaultTags.forEach((t) => t.remove());
+}
 
-  const canonicalUrl = currentUrl.startsWith('http') ? currentUrl : `${DEFAULT_BASE_URL}${currentUrl}`;
+/**
+ * Injects complete NewsArticle, Person Author, WebPage, BreadcrumbList, and FAQPage Schema
+ */
+export function injectArticleSchema(article: Article, author: Author | null, _currentUrl?: string): void {
+  removeArticleSchema();
+  clearSsrSchemaTag();
+
+  const canonicalUrl = `${DEFAULT_BASE_URL}/news/${encodeURIComponent(article.slug)}`;
   const wordCount = article.content ? article.content.split(/\s+/).filter(Boolean).length : 500;
   const publishedDate = article.publishedAt || new Date().toISOString();
   const modifiedDate = article.updatedAt || publishedDate;
+  const rawTitle = decodeHtmlEntities(article.seoTitle || article.headline).trim();
+  const fullTitle = rawTitle.toLowerCase().includes('iamquickagent.com')
+    ? rawTitle
+    : `${rawTitle} | iamquickagent.com`;
+  const metaDescription = buildDescriptionFromContent(
+    [article.seoDescription, article.deck, article.keyTakeaways?.[0], article.content],
+    `Read the latest ${article.category} breaking news: ${article.headline} on iamquickagent.com.`
+  );
+  const featuredImg = toAbsoluteImage(article.featuredImage);
+  const authorUrl = author
+    ? `${DEFAULT_BASE_URL}/author/${encodeURIComponent(author.id)}`
+    : `${DEFAULT_BASE_URL}/editorial-standards`;
 
-  // 1. NewsArticle Schema with AEO Speakable Specification
   const newsArticleSchema = {
     '@context': 'https://schema.org',
     '@type': 'NewsArticle',
@@ -83,7 +132,7 @@ export function injectArticleSchema(article: Article, author: Author | null, cur
       '@type': 'WebSite',
       '@id': `${DEFAULT_BASE_URL}/#website`,
       'name': 'iamquickagent.com',
-      'url': DEFAULT_BASE_URL,
+      'url': `${DEFAULT_BASE_URL}/`,
     },
     'mainEntityOfPage': {
       '@type': 'WebPage',
@@ -91,39 +140,32 @@ export function injectArticleSchema(article: Article, author: Author | null, cur
     },
     'headline': article.headline,
     'alternativeHeadline': article.deck || article.keyTakeaways?.[0] || article.headline,
-    'description': article.deck || article.keyTakeaways?.[0] || '',
-    'image': [
-      article.featuredImage || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&h=630&q=85',
-    ],
+    'description': metaDescription,
+    'image': [featuredImg],
     'datePublished': publishedDate,
     'dateModified': modifiedDate,
     'author': [
       {
         '@type': 'Person',
-        '@id': author ? `${DEFAULT_BASE_URL}/author/${author.id}` : `${DEFAULT_BASE_URL}/#desk`,
-        'name': author ? author.name : 'iamquickagent Intelligence Desk',
-        'jobTitle': author ? author.role : 'Staff Intelligence Analyst',
-        'url': author ? `${DEFAULT_BASE_URL}/author/${author.id}` : `${DEFAULT_BASE_URL}/editorial`,
+        '@id': `${authorUrl}#person`,
+        'name': author ? author.name : 'iamquickagent Newsroom Desk',
+        'jobTitle': author ? author.role : 'Staff Correspondent',
+        'url': authorUrl,
+        ...(author?.avatar ? { 'image': toAbsoluteImage(author.avatar) } : {}),
         ...(author?.twitter ? { 'sameAs': `https://twitter.com/${author.twitter.replace('@', '')}` } : {}),
       },
     ],
     'publisher': KNOWLEDGE_GRAPH_ORGANIZATION,
     'articleSection': article.category,
-    'keywords': article.tags ? article.tags.join(', ') : article.category,
+    'keywords': article.tags?.length ? article.tags.join(', ') : article.category,
     'wordCount': wordCount,
-    'abstract': article.keyTakeaways ? article.keyTakeaways.join(' • ') : article.deck,
+    'abstract': article.keyTakeaways?.length ? article.keyTakeaways.join(' • ') : metaDescription,
     'articleBody': article.content ? article.content.replace(/[#*`_]/g, '') : '',
     'inLanguage': 'en-US',
-    'isAccessibleForFree': 'True',
-    // AI Overview / Answer Engine Optimization (AEO) Speakable Tag
+    'isAccessibleForFree': true,
     'speakable': {
       '@type': 'SpeakableSpecification',
-      'cssSelector': [
-        '[data-aeo-summary="true"]',
-        '[data-aeo-takeaways="true"]',
-        'h1',
-        '.deck-summary',
-      ],
+      'cssSelector': ['[data-aeo-summary="true"]', '[data-aeo-takeaways="true"]', 'h1', '.deck-summary'],
     },
     'about': (article.tags || []).map((tag) => ({
       '@type': 'Thing',
@@ -131,7 +173,6 @@ export function injectArticleSchema(article: Article, author: Author | null, cur
     })),
   };
 
-  // 2. BreadcrumbList Schema
   const breadcrumbSchema = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -158,22 +199,37 @@ export function injectArticleSchema(article: Article, author: Author | null, cur
     ],
   };
 
-  // Inject Schemas into Document Head
   appendJsonLd(NEWS_SCHEMA_ID, newsArticleSchema);
   appendJsonLd(BREADCRUMB_SCHEMA_ID, breadcrumbSchema);
 
-  // 3. Update Document Title and Meta Tags
-  document.title = `${article.headline} | iamquickagent.com`;
-  updateMeta('description', article.deck || article.keyTakeaways?.[0] || article.headline);
-  updateMeta('news_keywords', article.tags ? article.tags.join(', ') : article.category);
-  updateMeta('keywords', article.tags ? article.tags.join(', ') : article.category);
-  updateMeta('author', author ? author.name : 'iamquickagent.com');
+  if (article.faq && article.faq.length > 0) {
+    appendJsonLd(FAQ_SCHEMA_ID, {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      '@id': `${canonicalUrl}#faq`,
+      'mainEntity': article.faq.map((f) => ({
+        '@type': 'Question',
+        'name': f.question,
+        'acceptedAnswer': {
+          '@type': 'Answer',
+          'text': f.answer,
+        },
+      })),
+    });
+  }
+
+  // Update Document Title and Meta Tags
+  document.title = fullTitle;
+  updateMeta('description', metaDescription);
+  updateMeta('news_keywords', article.tags?.length ? article.tags.join(', ') : article.category);
+  updateMeta('keywords', article.tags?.length ? article.tags.join(', ') : article.category);
+  updateMeta('author', author ? author.name : 'iamquickagent.com Newsroom');
 
   // OpenGraph Tags
   updateMeta('og:type', 'article');
-  updateMeta('og:title', `${article.headline} | iamquickagent.com`);
-  updateMeta('og:description', article.deck || article.keyTakeaways?.[0] || article.headline);
-  updateMeta('og:image', article.featuredImage);
+  updateMeta('og:title', fullTitle);
+  updateMeta('og:description', metaDescription);
+  updateMeta('og:image', featuredImg);
   updateMeta('og:url', canonicalUrl);
   updateMeta('article:published_time', publishedDate);
   updateMeta('article:modified_time', modifiedDate);
@@ -185,29 +241,30 @@ export function injectArticleSchema(article: Article, author: Author | null, cur
 
   // Twitter Tags
   updateMeta('twitter:card', 'summary_large_image');
-  updateMeta('twitter:title', article.headline);
-  updateMeta('twitter:description', article.deck || article.keyTakeaways?.[0] || article.headline);
-  updateMeta('twitter:image', article.featuredImage);
+  updateMeta('twitter:title', fullTitle);
+  updateMeta('twitter:description', metaDescription);
+  updateMeta('twitter:image', featuredImg);
 
   // Canonical Link
   updateCanonical(canonicalUrl);
 }
 
 /**
- * Injects Knowledge Graph and WebSite Schema for Homepage,
- * supporting Google Sitelinks Searchbox and Knowledge Panels.
+ * Injects Knowledge Graph NewsMediaOrganization and WebSite Schema for Homepage
  */
 export function injectHomeSchema(): void {
   removeArticleSchema();
+  clearSsrSchemaTag();
 
   const websiteSchema = {
     '@context': 'https://schema.org',
-    '@type': 'NewsMediaOrganization',
+    '@type': 'WebSite',
     '@id': `${DEFAULT_BASE_URL}/#website`,
-    'url': DEFAULT_BASE_URL,
+    'url': `${DEFAULT_BASE_URL}/`,
     'name': 'iamquickagent.com',
     'alternateName': ['iamquickagent', 'iamnewsagent'],
-    'description': 'Real-time breaking news portal delivering live headlines, market tracking, political coverage, and in-depth explainers.',
+    'description':
+      'Real-time breaking news portal delivering live headlines, market tracking, political coverage, and in-depth explainers.',
     'publisher': {
       '@id': `${DEFAULT_BASE_URL}/#organization`,
     },
@@ -225,18 +282,20 @@ export function injectHomeSchema(): void {
   appendJsonLd(WEBSITE_SCHEMA_ID, websiteSchema);
   appendJsonLd(KNOWLEDGE_GRAPH_SCHEMA_ID, KNOWLEDGE_GRAPH_ORGANIZATION);
 
-  document.title = 'iamquickagent.com - Latest Breaking News, Live Updates & Global Headlines';
-  updateMeta(
-    'description',
-    'Live breaking news, real-time headlines, and in-depth reporting across India, World, Business, Tech, Markets, Sports, and Politics with executive takeaways.'
-  );
+  const title = 'iamquickagent.com - Latest Breaking News, Live Updates & Global Headlines';
+  const desc =
+    'Live breaking news, real-time headlines, and in-depth reporting across India, World, Business, Tech, Markets, Sports, and Politics with executive takeaways.';
+
+  document.title = title;
+  updateMeta('description', desc);
   updateMeta('og:type', 'website');
-  updateMeta('og:title', 'iamquickagent.com - Latest Breaking News, Live Updates & Global Headlines');
-  updateMeta(
-    'og:description',
-    'Live breaking news, real-time headlines, and in-depth reporting across India, World, Business, Tech, Markets, Sports, and Politics with executive takeaways.'
-  );
+  updateMeta('og:title', title);
+  updateMeta('og:description', desc);
   updateMeta('og:url', `${DEFAULT_BASE_URL}/`);
+  updateMeta('og:image', DEFAULT_OG_IMAGE);
+  updateMeta('twitter:title', title);
+  updateMeta('twitter:description', desc);
+  updateMeta('twitter:image', DEFAULT_OG_IMAGE);
   updateCanonical(`${DEFAULT_BASE_URL}/`);
 }
 
@@ -245,14 +304,18 @@ export function injectHomeSchema(): void {
  */
 export function injectCategorySchema(category: string, count: number): void {
   removeArticleSchema();
+  clearSsrSchemaTag();
 
   const canonicalUrl = `${DEFAULT_BASE_URL}/?category=${encodeURIComponent(category)}`;
+  const title = `${category} News, Breaking Headlines & Live Updates | iamquickagent.com`;
+  const desc = `Read the latest ${category} breaking news, live dispatches, executive takeaways, and in-depth coverage from iamquickagent.com.`;
+
   const categorySchema = {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
     '@id': `${canonicalUrl}#collection`,
-    'name': `${category} News & Breaking Headlines | iamquickagent.com`,
-    'description': `Latest breaking news, live reporting, and in-depth explainers in ${category}.`,
+    'name': title,
+    'description': desc,
     'url': canonicalUrl,
     'isPartOf': {
       '@id': `${DEFAULT_BASE_URL}/#website`,
@@ -264,30 +327,159 @@ export function injectCategorySchema(category: string, count: number): void {
     'numberOfItems': count,
   };
 
-  appendJsonLd(CATEGORY_SCHEMA_ID, categorySchema);
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    '@id': `${canonicalUrl}#breadcrumb`,
+    'itemListElement': [
+      { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': `${DEFAULT_BASE_URL}/` },
+      { '@type': 'ListItem', 'position': 2, 'name': category, 'item': canonicalUrl },
+    ],
+  };
 
-  document.title = `${category} News & Breaking Headlines | iamquickagent.com`;
-  updateMeta('description', `Read latest ${category} breaking news, live updates, and top stories from iamquickagent.com.`);
-  updateMeta('og:title', `${category} News & Breaking Headlines | iamquickagent.com`);
-  updateMeta('og:description', `Read latest ${category} breaking news, live updates, and top stories.`);
+  appendJsonLd(KNOWLEDGE_GRAPH_SCHEMA_ID, KNOWLEDGE_GRAPH_ORGANIZATION);
+  appendJsonLd(CATEGORY_SCHEMA_ID, categorySchema);
+  appendJsonLd(BREADCRUMB_SCHEMA_ID, breadcrumbSchema);
+
+  document.title = title;
+  updateMeta('description', desc);
+  updateMeta('og:type', 'website');
+  updateMeta('og:title', title);
+  updateMeta('og:description', desc);
   updateMeta('og:url', canonicalUrl);
+  updateMeta('twitter:title', title);
+  updateMeta('twitter:description', desc);
   updateCanonical(canonicalUrl);
 }
 
 /**
- * Removes temporary schemas when navigating away
+ * Injects Author ProfilePage & Person Schema
+ */
+export function injectAuthorSchema(author: Author, articlesCount: number): void {
+  removeArticleSchema();
+  clearSsrSchemaTag();
+
+  const canonicalUrl = `${DEFAULT_BASE_URL}/author/${encodeURIComponent(author.id)}`;
+  const title = `${author.name} - ${author.role} | iamquickagent.com`;
+  const desc = buildDescriptionFromContent(
+    [`${author.name} (${author.role}) at iamquickagent.com. ${author.bio || ''}`],
+    `Read verified news reporting and analysis by ${author.name} (${articlesCount} reports) on iamquickagent.com.`
+  );
+  const avatarImg = toAbsoluteImage(author.avatar);
+
+  const profileSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'ProfilePage',
+    '@id': `${canonicalUrl}#webpage`,
+    'url': canonicalUrl,
+    'name': title,
+    'description': desc,
+    'isPartOf': { '@id': `${DEFAULT_BASE_URL}/#website` },
+    'mainEntity': {
+      '@type': 'Person',
+      '@id': `${canonicalUrl}#person`,
+      'name': author.name,
+      'jobTitle': author.role,
+      'description': author.bio,
+      'image': avatarImg,
+      'url': canonicalUrl,
+      ...(author.twitter ? { 'sameAs': [`https://twitter.com/${author.twitter.replace('@', '')}`] } : {}),
+      'worksFor': { '@id': `${DEFAULT_BASE_URL}/#organization` },
+    },
+  };
+
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    '@id': `${canonicalUrl}#breadcrumb`,
+    'itemListElement': [
+      { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': `${DEFAULT_BASE_URL}/` },
+      { '@type': 'ListItem', 'position': 2, 'name': author.name, 'item': canonicalUrl },
+    ],
+  };
+
+  appendJsonLd(KNOWLEDGE_GRAPH_SCHEMA_ID, KNOWLEDGE_GRAPH_ORGANIZATION);
+  appendJsonLd(AUTHOR_SCHEMA_ID, profileSchema);
+  appendJsonLd(BREADCRUMB_SCHEMA_ID, breadcrumbSchema);
+
+  document.title = title;
+  updateMeta('description', desc);
+  updateMeta('og:type', 'profile');
+  updateMeta('og:title', title);
+  updateMeta('og:description', desc);
+  updateMeta('og:image', avatarImg);
+  updateMeta('og:url', canonicalUrl);
+  updateMeta('twitter:title', title);
+  updateMeta('twitter:description', desc);
+  updateMeta('twitter:image', avatarImg);
+  updateCanonical(canonicalUrl);
+}
+
+/**
+ * Injects Legal / Compliance WebPage & BreadcrumbList Schema
+ */
+export function injectLegalPageSchema(page: LegalPageData): void {
+  removeArticleSchema();
+  clearSsrSchemaTag();
+
+  const canonicalUrl = `${DEFAULT_BASE_URL}${page.path}`;
+
+  const webPageSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    '@id': `${canonicalUrl}#webpage`,
+    'url': canonicalUrl,
+    'name': page.metaTitle,
+    'description': page.description,
+    'dateModified': page.lastUpdated,
+    'isPartOf': { '@id': `${DEFAULT_BASE_URL}/#website` },
+    'publisher': { '@id': `${DEFAULT_BASE_URL}/#organization` },
+    'inLanguage': 'en-US',
+  };
+
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    '@id': `${canonicalUrl}#breadcrumb`,
+    'itemListElement': [
+      { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': `${DEFAULT_BASE_URL}/` },
+      { '@type': 'ListItem', 'position': 2, 'name': page.title, 'item': canonicalUrl },
+    ],
+  };
+
+  appendJsonLd(KNOWLEDGE_GRAPH_SCHEMA_ID, KNOWLEDGE_GRAPH_ORGANIZATION);
+  appendJsonLd(LEGAL_SCHEMA_ID, webPageSchema);
+  appendJsonLd(BREADCRUMB_SCHEMA_ID, breadcrumbSchema);
+
+  document.title = page.metaTitle;
+  updateMeta('description', page.description);
+  updateMeta('og:type', 'website');
+  updateMeta('og:title', page.metaTitle);
+  updateMeta('og:description', page.description);
+  updateMeta('og:url', canonicalUrl);
+  updateMeta('twitter:title', page.metaTitle);
+  updateMeta('twitter:description', page.description);
+  updateCanonical(canonicalUrl);
+}
+
+/**
+ * Removes page-specific temporary schemas when navigating away
  */
 export function removeArticleSchema(): void {
-  const ids = [NEWS_SCHEMA_ID, BREADCRUMB_SCHEMA_ID, CATEGORY_SCHEMA_ID];
+  const ids = [
+    NEWS_SCHEMA_ID,
+    BREADCRUMB_SCHEMA_ID,
+    CATEGORY_SCHEMA_ID,
+    AUTHOR_SCHEMA_ID,
+    LEGAL_SCHEMA_ID,
+    FAQ_SCHEMA_ID,
+  ];
   ids.forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.remove();
   });
 }
 
-/**
- * Safely appends or updates a JSON-LD script tag in document.head
- */
 function appendJsonLd(id: string, schema: object): void {
   let script = document.getElementById(id) as HTMLScriptElement;
   if (!script) {
@@ -299,9 +491,6 @@ function appendJsonLd(id: string, schema: object): void {
   script.text = JSON.stringify(schema, null, 2);
 }
 
-/**
- * Updates or creates meta tags (supporting both 'name' and 'property' attributes)
- */
 function updateMeta(nameOrProp: string, content: string): void {
   if (!content) return;
   let el = document.querySelector(`meta[name="${nameOrProp}"]`) as HTMLMetaElement;
@@ -320,9 +509,6 @@ function updateMeta(nameOrProp: string, content: string): void {
   el.setAttribute('content', content);
 }
 
-/**
- * Updates or creates the canonical link tag in document.head
- */
 export function updateCanonical(url: string): void {
   let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
   if (!link) {
@@ -333,23 +519,17 @@ export function updateCanonical(url: string): void {
   link.setAttribute('href', url);
 }
 
-/**
- * Fully decodes HTML entities (both decimal, hex, and named entities) into clean UTF-8 text
- */
 export function decodeHtmlEntities(str: string): string {
   if (!str) return '';
   return str
-    // Numeric decimal entities (e.g. &#039;, &#39;, &#8217;)
     .replace(/&#(\d+);/g, (_, dec) => {
       const code = parseInt(dec, 10);
       return !isNaN(code) ? String.fromCharCode(code) : _;
     })
-    // Numeric hex entities (e.g. &#x27;, &#x2019;)
     .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => {
       const code = parseInt(hex, 16);
       return !isNaN(code) ? String.fromCharCode(code) : _;
     })
-    // Named entities
     .replace(/&amp;/gi, '&')
     .replace(/&quot;/gi, '"')
     .replace(/&apos;/gi, "'")
@@ -369,9 +549,6 @@ export function decodeHtmlEntities(str: string): string {
     .replace(/<!\[CDATA\[(.*?)\]\]>/gs, '$1');
 }
 
-/**
- * Generates clean, URL-safe slugs without raw entity fragments (e.g. turns Mumbai's into mumbais, never -039-)
- */
 export function slugify(text: string): string {
   const decoded = decodeHtmlEntities(text || '');
   return decoded

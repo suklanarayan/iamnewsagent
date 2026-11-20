@@ -787,6 +787,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     <img
                       src={op.authorAvatar}
                       alt={op.authorName}
+                      width={40}
+                      height={40}
+                      loading="lazy"
                       className="w-10 h-10 rounded-full object-cover border border-slate-200"
                     />
                     <div>

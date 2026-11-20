@@ -1,68 +1,116 @@
 import fs from 'fs';
 import path from 'path';
+import templateData from './_ssr-template.json';
+import { getLegalPageByPath } from '../src/data/legalPages';
 import {
+  SITE_URL,
   getAllServerArticles,
+  getAllServerAuthors,
   getServerArticleBySlug,
+  getServerAuthorById,
   renderArticleSsrHtml,
+  renderAuthorSsrHtml,
   renderHomeSsrHtml,
+  renderLegalSsrHtml,
 } from '../src/server/ssrEngine';
+
+function getTemplateHtml(): string {
+  // 1. Prefer bundled Vite-built HTML template captured during build by scripts/prepare-ssr.mjs
+  if (templateData && typeof templateData.html === 'string' && templateData.html.includes('<div id="root">')) {
+    return templateData.html;
+  }
+
+  // 2. Fallback to reading from filesystem if available
+  const possiblePaths = [
+    path.join(process.cwd(), 'dist', 'index.html'),
+    path.join(process.cwd(), 'index.html'),
+    path.resolve(__dirname, '..', 'dist', 'index.html'),
+    path.resolve(__dirname, '..', 'index.html'),
+  ];
+
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      return fs.readFileSync(p, 'utf-8');
+    }
+  }
+
+  return `<!doctype html><html lang="en"><head><meta charset="UTF-8" /><title>iamquickagent.com</title></head><body><div id="root"></div></body></html>`;
+}
 
 export default async function handler(req: any, res: any) {
   try {
     const rawUrl = req.url || '/';
-    const parsedUrl = new URL(rawUrl, 'https://iamquickagent.com');
+    const parsedUrl = new URL(rawUrl, SITE_URL);
     const pathname = parsedUrl.pathname;
 
-    // Load base index.html template
-    let templateHtml = '';
-    const possiblePaths = [
-      path.join(process.cwd(), 'dist', 'index.html'),
-      path.join(process.cwd(), 'index.html'),
-      path.resolve(__dirname, '..', 'dist', 'index.html'),
-      path.resolve(__dirname, '..', 'index.html'),
-    ];
-
-    for (const p of possiblePaths) {
-      if (fs.existsSync(p)) {
-        templateHtml = fs.readFileSync(p, 'utf-8');
-        break;
-      }
+    // 0. Permanent 301 Redirect for legacy /article/:slug URLs -> canonical /news/:slug
+    const legacyArticleMatch = pathname.match(/^\/article\/([a-zA-Z0-9-_]+)\/?$/);
+    if (legacyArticleMatch) {
+      const slug = legacyArticleMatch[1];
+      res.setHeader('Location', `${SITE_URL}/news/${encodeURIComponent(slug)}`);
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      return res.status(301).end();
     }
 
-    if (!templateHtml) {
-      templateHtml = `<!doctype html><html><head><title>iamquickagent.com</title></head><body><div id="root"></div></body></html>`;
+    const templateHtml = getTemplateHtml();
+
+    // 1. Legal & Compliance Pages (/privacy-policy, /terms-of-service, /cookie-policy, /editorial-standards)
+    const legalPage = getLegalPageByPath(pathname);
+    if (legalPage) {
+      const ssrHtml = renderLegalSsrHtml(legalPage, templateHtml);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400');
+      return res.status(200).send(ssrHtml);
     }
 
-    // 1. Article route: /news/:slug or /article/:slug
-    const articleMatch = pathname.match(/^\/(?:news|article)\/([a-zA-Z0-9-_]+)/);
-    if (articleMatch) {
-      const slug = articleMatch[1];
-      const article = await getServerArticleBySlug(slug);
+    // 2. Dynamic News Article Page (/news/:slug)
+    const newsMatch = pathname.match(/^\/news\/([a-zA-Z0-9-_]+)\/?$/);
+    if (newsMatch) {
+      const slug = newsMatch[1];
+      const [article, allArticles, authors] = await Promise.all([
+        getServerArticleBySlug(slug),
+        getAllServerArticles(),
+        getAllServerAuthors(),
+      ]);
 
       if (article) {
-        const ssrHtml = renderArticleSsrHtml(article, templateHtml);
+        const ssrHtml = renderArticleSsrHtml(article, templateHtml, authors, allArticles);
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400');
         return res.status(200).send(ssrHtml);
       }
     }
 
-    // 2. Homepage or Category route
-    const allArticles = await getAllServerArticles();
+    // 3. Author Profile Page (/author/:id)
+    const authorMatch = pathname.match(/^\/author\/([a-zA-Z0-9-_]+)\/?$/);
+    if (authorMatch) {
+      const authorId = authorMatch[1];
+      const [author, allArticles] = await Promise.all([
+        getServerAuthorById(authorId),
+        getAllServerArticles(),
+      ]);
+      if (author) {
+        const ssrHtml = renderAuthorSsrHtml(author, allArticles, templateHtml);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=900, stale-while-revalidate=86400');
+        return res.status(200).send(ssrHtml);
+      }
+    }
+
+    // 4. Homepage or Category Route (/, /?category=...)
+    const [allArticles, authors] = await Promise.all([
+      getAllServerArticles(),
+      getAllServerAuthors(),
+    ]);
     const categoryParam = parsedUrl.searchParams.get('category') || undefined;
-    const homeHtml = renderHomeSsrHtml(allArticles, templateHtml, categoryParam);
+    const homeHtml = renderHomeSsrHtml(allArticles, templateHtml, categoryParam, authors);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=180, stale-while-revalidate=86400');
     return res.status(200).send(homeHtml);
   } catch (err: any) {
     console.error('SSR Handler error:', err?.message || err);
-    // Graceful fallback to static index.html
-    const fallbackPath = path.join(process.cwd(), 'index.html');
-    const fallbackHtml = fs.existsSync(fallbackPath)
-      ? fs.readFileSync(fallbackPath, 'utf-8')
-      : '<!doctype html><html><head><title>iamquickagent.com</title></head><body><div id="root"></div></body></html>';
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.status(200).send(fallbackHtml);
+    return res.status(200).send(getTemplateHtml());
   }
 }

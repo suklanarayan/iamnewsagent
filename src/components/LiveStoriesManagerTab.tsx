@@ -716,7 +716,7 @@ export const LiveStoriesManagerTab: React.FC<LiveStoriesManagerTabProps> = ({
                       type="text"
                       value={formDestinationUrl}
                       onChange={(e) => setFormDestinationUrl(e.target.value)}
-                      placeholder="e.g. https://... or /article/..."
+                      placeholder="e.g. https://... or /news/..."
                       className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-amber-400"
                     />
                   </div>

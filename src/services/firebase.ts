@@ -14,23 +14,15 @@ export const db: Firestore = getFirestore(app, firebaseConfig.firestoreDatabaseI
 // Initialize Firebase Auth
 export const auth: Auth = getAuth(app);
 
-// Test connection on boot as specified in Firestore guidelines
+// Test connection helper (uses public articles collection instead of denied /test path)
 export async function testConnection(): Promise<boolean> {
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
+    await getDocFromServer(doc(db, 'site_settings', 'health'));
     return true;
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Firebase client is offline or connecting...');
-    }
+  } catch {
     return false;
   }
 }
-
-// Kick off test connection
-testConnection().catch(() => {
-  // Graceful initial probe
-});
 
 export enum OperationType {
   CREATE = 'create',
